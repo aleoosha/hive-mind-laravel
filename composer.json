@@ -1,0 +1,27 @@
+{
+    "name": "aleoosha/hive-mind-laravel",
+    "description": "Biological load balancing and self-regulation for Laravel clusters",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Aleoosha\\HiveMind\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "aleoosha"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Aleoosha\\HiveMind\\Providers\\HiveMindServiceProvider"
+            ]
+        }
+    },
+    "require": {
+        "php": "^8.1",
+        "illuminate/support": "^10.0|^11.0"
+    }
+}
