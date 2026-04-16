@@ -10,6 +10,14 @@ class HiveMindServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(\Aleoosha\HiveMind\Contracts\Serializer::class, function ($app) {
+            $format = config('hive-mind.broadcast.format', 'json');
+            
+            return match ($format) {
+                'msgpack' => new \Aleoosha\HiveMind\Serializers\MsgPackSerializer(),
+                default   => new \Aleoosha\HiveMind\Serializers\JsonSerializer(),
+            };
+        });
         $this->app->singleton(
             \Aleoosha\HiveMind\Contracts\StateRepository::class, 
             \Aleoosha\HiveMind\Repositories\RedisStateRepository::class
