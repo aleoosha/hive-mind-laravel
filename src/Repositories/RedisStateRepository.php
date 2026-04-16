@@ -49,7 +49,7 @@ class RedisStateRepository implements StateRepository
                 continue;
             }
 
-            $scores[] = ($data['cpu'] ?? 0);
+            $scores[] = max($data['cpu'] ?? 0, $data['memory'] ?? 0);
         }
 
         $count = count($scores);
