@@ -1,10 +1,23 @@
 <?php
 
-namespace Tests;
+namespace Aleoosha\HiveMind\Tests;
 
-use PHPUnit\Framework\TestCase as BaseTestCase;
+use Aleoosha\HiveMind\Providers\HiveMindServiceProvider;
+use Orchestra\Testbench\TestCase as Orchestra;
 
-abstract class TestCase extends BaseTestCase
+class TestCase extends Orchestra
 {
-    //
+    protected function getPackageProviders($app): array
+    {
+        return [
+            HiveMindServiceProvider::class,
+        ];
+    }
+
+    protected function getEnvironmentSetUp($app): void
+    {
+        $app['config']->set('hive-mind.shedding.activation_threshold', 75);
+        $app['config']->set('hive-mind.shedding.retry_after', 60);
+        $app['config']->set('database.redis.options.prefix', 'test_');
+    }
 }

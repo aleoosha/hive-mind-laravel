@@ -1,6 +1,6 @@
 <?php
 
-use Tests\TestCase;
+use Aleoosha\HiveMind\Tests\TestCase;
 
 /*
 |--------------------------------------------------------------------------
@@ -13,8 +13,7 @@ use Tests\TestCase;
 |
 */
 
-pest()->extend(PHPUnit\Framework\TestCase::class)->in('Feature');
-
+pest()->extend(TestCase::class)->in('Unit', 'Feature');
 /*
 |--------------------------------------------------------------------------
 | Expectations

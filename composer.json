@@ -8,6 +8,11 @@
             "Aleoosha\\HiveMind\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Aleoosha\\HiveMind\\Tests\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "aleoosha"
@@ -29,7 +34,10 @@
         "test": "vendor/bin/phpunit"
     },
     "require-dev": {
-        "pestphp/pest": "^4.6"
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0",
+        "phpunit/phpunit": "^11.0",
+        "orchestra/testbench": "^9.0"
     },
     "config": {
         "allow-plugins": {
