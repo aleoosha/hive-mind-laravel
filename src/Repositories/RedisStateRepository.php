@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Redis;
 class RedisStateRepository implements StateRepository
 {
     private const PREFIX = 'hive_node:';
+    private ?int $localCache = null;
 
     public function __construct(
         protected Serializer $serializer
@@ -27,6 +28,10 @@ class RedisStateRepository implements StateRepository
 
     public function getGlobalHealth(): int
     {
+        if ($this->localCache !== null) {
+            return $this->localCache;
+        }
+
         $keys = Redis::keys(self::PREFIX . '*');
         if (empty($keys)) return 0;
 
@@ -44,6 +49,11 @@ class RedisStateRepository implements StateRepository
             }
         }
 
-        return $count > 0 ? (int)($totalCpu / $count) : 0;
+        return $this->localCache = ($count > 0 ? (int)($totalCpu / $count) : 0);
+    }
+
+    public function flushLocalCache(): void
+    {
+        $this->localCache = null;
     }
 }

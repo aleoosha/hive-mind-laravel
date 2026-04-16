@@ -5,6 +5,8 @@ namespace Aleoosha\HiveMind\Providers;
 use Illuminate\Support\ServiceProvider;
 use Aleoosha\HiveMind\Console\Commands\HivePulseCommand;
 use Aleoosha\HiveMind\Http\Middleware\AltruismMiddleware;
+use Aleoosha\HiveMind\Contracts\StateRepository;
+use Aleoosha\HiveMind\Repositories\RedisStateRepository;
 
 class HiveMindServiceProvider extends ServiceProvider
 {
@@ -19,8 +21,8 @@ class HiveMindServiceProvider extends ServiceProvider
             };
         });
         $this->app->singleton(
-            \Aleoosha\HiveMind\Contracts\StateRepository::class, 
-            \Aleoosha\HiveMind\Repositories\RedisStateRepository::class
+            StateRepository::class, 
+            RedisStateRepository::class
         );
     }
 
@@ -30,6 +32,12 @@ class HiveMindServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../../config/hive-mind.php' => config_path('hive-mind.php'),
         ], 'hive-mind-config');
+
+        $this->app->terminating(function () {
+            if ($this->app->bound(StateRepository::class)) {
+                $this->app->make(StateRepository::class)->flushLocalCache();
+            }
+        });
 
         $this->registerMiddleware();
 

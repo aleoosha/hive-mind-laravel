@@ -14,7 +14,6 @@ class AltruismMiddleware
 
     public function handle(Request $request, Closure $next)
     {
-        // 1. Проверяем, включена ли защита в конфиге
         if (!config('hive-mind.shedding.enabled', true)) {
             return $next($request);
         }

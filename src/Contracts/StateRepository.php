@@ -8,4 +8,5 @@ interface StateRepository
 {
     public function updateLocal(NodeMetrics $metrics): void;
     public function getGlobalHealth(): int;
+    public function flushLocalCache(): void;
 }
