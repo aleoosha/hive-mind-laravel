@@ -35,21 +35,25 @@ class RedisStateRepository implements StateRepository
         $keys = Redis::keys(self::PREFIX . '*');
         if (empty($keys)) return 0;
 
-        $totalCpu = 0;
-        $count = 0;
+        $scores = [];
+        $now = microtime(true);
 
         foreach ($keys as $key) {
             $cleanKey = str_replace(config('database.redis.options.prefix', ''), '', $key);
             $raw = Redis::get($cleanKey);
+            if (!$raw) continue;
+
+            $data = $this->serializer->unpack($raw);
             
-            if ($raw) {
-                $decoded = $this->serializer->unpack($raw);
-                $totalCpu += $decoded['cpu'] ?? 0;
-                $count++;
+            if (($now - ($data['timestamp'] ?? 0)) > 10) {
+                continue;
             }
+
+            $scores[] = ($data['cpu'] ?? 0);
         }
 
-        return $this->localCache = ($count > 0 ? (int)($totalCpu / $count) : 0);
+        $count = count($scores);
+        return $this->localCache = ($count > 0) ? (int)(array_sum($scores) / $count) : 0;
     }
 
     public function flushLocalCache(): void

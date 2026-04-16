@@ -1,24 +1,29 @@
 <?php
 
 return [
-    'thresholds' => [
-        'cpu_percent' => 80,
-        'memory_percent' => 90,
-        'db_latency_ms' => 500,
-    ],
-
+    /*
+    |--------------------------------------------------------------------------
+    | Broadcast Settings
+    |--------------------------------------------------------------------------
+    */
     'broadcast' => [
         'interval_seconds' => 1,
-        'driver' => 'redis',
-        'format' => env('HIVE_FORMAT', 'json'), // options: json, msgpack
+        'format' => env('HIVE_FORMAT', 'json'), // json или msgpack
         'ttl_seconds' => 5,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Load Shedding (Защита от перегрузки)
+    |--------------------------------------------------------------------------
+    */
     'shedding' => [
-        'enabled' => true,
-        'mode' => 'probabilistic', // options: static, probabilistic
+        'enabled' => env('HIVE_SHEDDING_ENABLED', true),
+        
         'activation_threshold' => 75,
+        
         'retry_after' => 60,
+
         'except' => [
             'telescope*',
             'horizon*',
@@ -27,7 +32,14 @@ return [
         ],
     ],
 
-    'aggregation' => [
-        'window_size' => 5, // number of latest heartbeats to average
+    /*
+    |--------------------------------------------------------------------------
+    | Global Health Aggregation
+    |--------------------------------------------------------------------------
+    | Эти параметры зарезервированы для будущих версий (db_latency, window_size)
+    */
+    'thresholds' => [
+        'cpu_percent' => 80,
+        'memory_percent' => 90,
     ],
 ];
