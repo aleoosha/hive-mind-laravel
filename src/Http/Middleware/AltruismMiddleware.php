@@ -5,6 +5,7 @@ namespace Aleoosha\HiveMind\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Aleoosha\HiveMind\Contracts\StateRepository;
+use Illuminate\Support\Facades\Log;
 
 class AltruismMiddleware
 {
@@ -28,16 +29,36 @@ class AltruismMiddleware
         $threshold = config('hive-mind.shedding.activation_threshold', 75);
 
         if ($health >= $threshold) {
-            \Log::warning("HiveMind: Load shedding triggered. Health: {$health}%");
+            if ($this->shouldShed($health, $threshold)) {
+                Log::warning("HiveMind: Load shedding triggered. Mode: " . config('hive-mind.shedding.mode') . ". Health: {$health}%");
 
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Service Temporarily Unavailable',
-            ], 503, [
-                'Retry-After' => config('hive-mind.shedding.retry_after', 60)
-            ]);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Service Temporarily Unavailable',
+                ], 503, [
+                    'Retry-After' => config('hive-mind.shedding.retry_after', 60)
+                ]);
+            }
         }
 
         return $next($request);
+    }
+
+    /**
+     * Логика принятия решения об отклонении запроса.
+     */
+    protected function shouldShed(int $health, int $threshold): bool
+    {
+        if ($health >= 100) {
+            return true;
+        }
+
+        if (config('hive-mind.shedding.mode', 'static') === 'static') {
+            return true;
+        }
+
+        $chanceOfRejection = (($health - $threshold) / (100 - $threshold)) * 100;
+
+        return random_int(1, 100) <= $chanceOfRejection;
     }
 }
