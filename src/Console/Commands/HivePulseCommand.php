@@ -4,33 +4,29 @@ namespace Aleoosha\HiveMind\Console\Commands;
 
 use Illuminate\Console\Command;
 use Aleoosha\HiveMind\Services\MetricsCollector;
+use Aleoosha\HiveMind\Contracts\StateRepository;
 
 class HivePulseCommand extends Command
 {
     protected $signature = 'hive:pulse';
     protected $description = 'Test node metrics collection with DTO';
 
-    public function handle(MetricsCollector $collector): int
+    public function handle(MetricsCollector $collector, StateRepository $repository): int
     {
-        $this->info('HiveMind: Testing metrics collection with DTO...');
+        $this->info('HiveMind: Broadcasting node health...');
 
-        for ($i = 0; $i < 5; $i++) {
-            // Теперь $metrics — это объект NodeMetrics
+        while (true) {
             $metrics = $collector->getMetrics();
+            $repository->updateLocal($metrics);
             
             $this->line(sprintf(
-                "[%s] CPU: %s%% | Mem: %s%% | TS: %s",
-                now()->toTimeString(),
+                "[%s] Hive Heartbeat -> CPU: %s%% | Mem: %s%%", 
+                now()->toTimeString(), 
                 $metrics->cpu,
-                $metrics->memory,
-                $metrics->timestamp
+                $metrics->memory
             ));
             
-            sleep(1);
+            sleep(config('hive-mind.broadcast.interval_seconds', 1));
         }
-
-        $this->info('DTO Test completed successfully.');
-        
-        return self::SUCCESS;
     }
 }
