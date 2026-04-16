@@ -1,0 +1,1 @@
+{"version":"pest_4.6.1","defects":[],"times":{"P\\Tests\\Unit\\MetricsCollectorTest::__pest_evaluable_it_collects_metrics_and_returns_a_NodeMetrics_object":0.203,"P\\Tests\\Unit\\NodeMetricsTest::__pest_evaluable_it_stores_metrics_correctly":0,"P\\Tests\\Unit\\NodeMetricsTest::__pest_evaluable_it_can_convert_to_array":0}}
