@@ -28,8 +28,9 @@ class AltruismMiddleware
             return response()->json([
                 'status' => 'error',
                 'message' => 'Service Temporarily Unavailable',
-                'retry_after' => 60,
-            ], 503);
+            ], 503, [
+                'Retry-After' => config('hive-mind.shedding.retry_after', 60)
+            ]);
         }
 
         return $next($request);

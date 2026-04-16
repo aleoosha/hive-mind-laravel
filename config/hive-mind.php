@@ -18,6 +18,7 @@ return [
         'enabled' => true,
         'mode' => 'probabilistic', // options: static, probabilistic
         'activation_threshold' => 75,
+        'retry_after' => 60,
     ],
 
     'aggregation' => [
