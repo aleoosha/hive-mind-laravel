@@ -2,13 +2,13 @@
 
 namespace Aleoosha\HiveMind\Dto;
 
-readonly class NodeMetrics
+class NodeMetrics
 {
     public function __construct(
-        public float $cpu,
-        public float $memory,
-        public float $dbLatencyMs = 0.0,
-        public float $timestamp = 0.0
+        public readonly float $cpu,
+        public readonly float $memory,
+        public readonly float $dbLatencyMs = 0.0,
+        public readonly float $timestamp = 0.0
     ) {
     }
 
