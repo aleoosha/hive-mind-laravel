@@ -9,11 +9,11 @@ class MsgPackSerializer implements Serializer
 {
     public function pack(array $data): string 
     { 
-        MessagePack::pack($data); 
+        return MessagePack::pack($data); 
     }
 
     public function unpack(string $data): array 
     {
-        MessagePack::unpack($data);
+        return MessagePack::unpack($data);
     }
 }
