@@ -14,6 +14,12 @@ class AltruismMiddleware
 
     public function handle(Request $request, Closure $next)
     {
+        $except = config('hive-mind.shedding.except', []);
+        
+        if ($request->is($except)) {
+            return $next($request);
+        }
+        
         if (!config('hive-mind.shedding.enabled', true)) {
             return $next($request);
         }
