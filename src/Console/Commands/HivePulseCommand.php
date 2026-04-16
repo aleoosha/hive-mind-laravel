@@ -11,17 +11,26 @@ class HivePulseCommand extends Command
     protected $signature = 'hive:pulse';
     protected $description = 'Run node broadcast loop';
 
-    public function handle(MetricsCollector $collector, StateRepository $repository)
+    public function handle(MetricsCollector $collector)
     {
-        $this->info('HiveMind: Broadcasting started...');
+        $this->info('HiveMind: Testing metrics collection...');
 
-        while (true) {
+        // Сделаем 5 циклов замера, чтобы проверить стабильность
+        for ($i = 0; $i < 5; $i++) {
             $metrics = $collector->getMetrics();
-            $repository->updateLocal($metrics);
             
-            $this->line("Metrics sent: CPU {$metrics['cpu']}%", 'info', 'vv');
+            $this->line(sprintf(
+                "[%s] CPU: %s%% | Mem: %s%%",
+                now()->toTimeString(),
+                $metrics['cpu'],
+                $metrics['memory']
+            ));
             
-            sleep(config('hive-mind.broadcast.interval_seconds'));
+            sleep(1);
         }
+
+        $this->info('Test completed successfully.');
+        return self::SUCCESS;
     }
+
 }
