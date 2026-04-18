@@ -104,21 +104,22 @@ final class HivePulseCommand extends Command
 
         try {
             DB::table('hive_snapshots')->insert([
-                'avg_health'     => $snapshot->avgHealth,
-                'shedding_rate'  => $snapshot->avgShedding, 
-                'avg_cpu'        => $snapshot->avgCpu,
-                'max_cpu'        => $snapshot->maxCpu,
+                'avg_health' => $snapshot->avgHealth,
+                'shedding_rate' => $snapshot->avgShedding, 
+                'avg_cpu' => $snapshot->avgCpu,
+                'max_cpu' => $snapshot->maxCpu,
                 'avg_db_latency' => $snapshot->avgDbLatency,
                 'max_db_latency' => $snapshot->maxDbLatency,
                 'avg_api_latency'=> $snapshot->avgApiLatency,
                 'max_api_latency'=> $snapshot->maxApiLatency,
-                'sample_count'   => $snapshot->sampleCount,
-                'node_count'     => $snapshot->nodeCount,
-                'cpu_cores'      => $hardware->cpuCores,
-                'ram_total'   => $hardware->ramTotalGb,
-                'server_os'      => $hardware->os,
-                'php_version'    => $hardware->phpVersion,
-                'created_at'     => now(),
+                'sample_count' => $snapshot->sampleCount,
+                'node_count' => $snapshot->nodeCount,
+                'cpu_cores' => $hardware->cpuCores,
+                'ram_total' => $hardware->ramTotalGb,
+                'server_os' => $hardware->os,
+                'php_version' => $hardware->phpVersion,
+                'thresholds_snapshot' => $snapshot->thresholdsSnapshot, 
+                'created_at' => now(),
             ]);
             $this->info("Snapshot saved!");
         } catch (Throwable $e) {
