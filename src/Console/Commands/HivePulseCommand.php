@@ -52,10 +52,12 @@ final class HivePulseCommand extends Command
                 $repository->getGlobalHealth(),
                 $metrics
             );
+            
+            $activeNodes = count(\Illuminate\Support\Facades\Redis::keys('hive_node:*'));
 
             // 5. Слой архивации: Запись в SQL раз в минуту
             if (time() - $lastArchiveTime >= 60) {
-                $this->archive($accumulator->flush());
+                $this->archive($accumulator->flush($activeNodes));
                 $lastArchiveTime = time();
             }
 
