@@ -30,6 +30,7 @@ return new class extends Migration {
             // Масштабируемость
             $table->integer('sample_count')->comment('Количество замеров в этом снимке');
             $table->integer('node_count')->comment('Количество активных нод в рою');
+            $table->float('shedding_rate')->default(0)->comment('Итоговый сигнал отсечения ПИД');
 
             // Индекс для построения временных рядов (Time-series)
             $table->timestamp('created_at')->index();

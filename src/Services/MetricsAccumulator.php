@@ -14,11 +14,12 @@ final class MetricsAccumulator
         private readonly AccumulatorState $state
     ) {}
 
-    public function push(int $health, NodeMetrics $metrics): void
+    public function push(int $health, NodeMetrics $metrics, float $sheddingRate): void
     {
         $this->state->count++;
         
         $this->state->sumHealth += $health;
+        $this->state->sumShedding += $sheddingRate; 
         
         $this->state->sumCpu += $metrics->cpu;
         $this->state->maxCpu = max($this->state->maxCpu, $metrics->cpu);
@@ -42,6 +43,7 @@ final class MetricsAccumulator
             maxDbLatency: $this->state->maxDb,
             avgApiLatency: $this->state->sumApi / $count,
             maxApiLatency: $this->state->maxApi,
+            avgShedding: $this->state->sumShedding / $count,
             sampleCount: $this->state->count,
             nodeCount: $activeNodes
         );

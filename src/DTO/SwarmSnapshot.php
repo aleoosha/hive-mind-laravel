@@ -14,6 +14,7 @@ final class SwarmSnapshot
         public readonly float $maxDbLatency,
         public readonly float $avgApiLatency,
         public readonly float $maxApiLatency,
+        public readonly float $avgShedding,
         public readonly int $sampleCount,
         public readonly int $nodeCount 
     ) {}

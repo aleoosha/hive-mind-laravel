@@ -40,22 +40,26 @@ final class HivePulseCommand extends Command
         while (!$this->shouldQuit) {
             // 1. Слой восприятия: Снимаем метрики
             $metrics = $collector->getMetrics();
+    
+            // 2. Считаем сигнал ПИД-регулятора ОДИН РАЗ
+            $sheddingRate = $intelligence->computeSheddingRate($metrics);
 
-            // 2. Слой коммуникации: Обновляем Heartbeat в Redis
+            // 3. Слой коммуникации: Обновляем Heartbeat в Redis
             $repository->updateLocal($metrics);
 
-            // 3. Слой интеллекта: Расчет ПИД-коэффициентов
+            // 4. Слой интеллекта: Расчет ПИД-коэффициентов
             $intelligence->computeSheddingRate($metrics);
 
-            // 4. Слой памяти: Накапливаем данные для минутного архива
+            // 5. Слой памяти: Накапливаем данные для минутного архива
             $accumulator->push(
                 $repository->getGlobalHealth(),
-                $metrics
+                $metrics, 
+                $sheddingRate
             );
             
             $activeNodes = count(\Illuminate\Support\Facades\Redis::keys('hive_node:*'));
 
-            // 5. Слой архивации: Запись в SQL раз в минуту
+            // 6. Слой архивации: Запись в SQL раз в минуту
             if (time() - $lastArchiveTime >= 60) {
                 $this->archive($accumulator->flush($activeNodes));
                 $lastArchiveTime = time();
@@ -94,6 +98,7 @@ final class HivePulseCommand extends Command
         try {
             DB::table('hive_snapshots')->insert([
                 'avg_health'     => $snapshot->avgHealth,
+                'shedding_rate'  => $snapshot->avgShedding, 
                 'avg_cpu'        => $snapshot->avgCpu,
                 'max_cpu'        => $snapshot->maxCpu,
                 'avg_db_latency' => $snapshot->avgDbLatency,

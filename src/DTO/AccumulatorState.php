@@ -16,6 +16,7 @@ final class AccumulatorState
     public float $maxDb = 0.0;
     public float $sumApi = 0.0;
     public float $maxApi = 0.0;
+    public float $sumShedding = 0.0;
     public int $count = 0;
 
     public function reset(): void
@@ -27,6 +28,7 @@ final class AccumulatorState
         $this->maxDb = 0.0;
         $this->sumApi = 0.0;
         $this->maxApi = 0.0;
+        $this->sumShedding = 0.0;
         $this->count = 0;
     }
 }
