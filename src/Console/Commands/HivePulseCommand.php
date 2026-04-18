@@ -59,6 +59,15 @@ final class HivePulseCommand extends Command
                 $lastArchiveTime = time();
             }
 
+            $this->line(sprintf(
+                "[%s] Node: %s | CPU: %s%% | DB: %s ms | PID Output: %s",
+                now()->toTimeString(),
+                $metrics->nodeId,
+                $metrics->cpu,
+                $metrics->dbLatency,
+                $intelligence->computeSheddingRate($metrics)
+            ));
+
             sleep($interval);
         }
 
