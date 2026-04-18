@@ -1,23 +1,33 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Aleoosha\HiveMind\Exceptions;
 
 use Exception;
+use Illuminate\Http\JsonResponse;
 
-class HiveOvercapacityException extends Exception
+final class HiveOvercapacityException extends Exception
 {
     public function __construct(
-        protected int $health,
-        string $message = "Operation blocked by HiveMind protection",
-        int $code = 503,
-        ?\Throwable $previous = null
+        string $message,
+        private readonly int $health,
+        private readonly int $retryAfter = 60
     ) {
-        $fullMessage = "{$message} (Current Hive Load: {$health}%)";
-        parent::__construct($fullMessage, $code, $previous);
+        parent::__construct($message, 503);
     }
 
-    public function getHealth(): int
+    /**
+     * Автоматический рендеринг ответа Laravel.
+     */
+    public function render($request): JsonResponse
     {
-        return $this->health;
+        return response()->json([
+            'status' => 'error',
+            'message' => $this->getMessage(),
+            'health' => $this->health,
+        ], 503, [
+            'Retry-After' => $this->retryAfter,
+        ]);
     }
 }

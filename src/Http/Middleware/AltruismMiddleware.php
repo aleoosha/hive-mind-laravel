@@ -1,64 +1,47 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Aleoosha\HiveMind\Http\Middleware;
 
+use Aleoosha\HiveMind\Exceptions\HiveOvercapacityException;
+use Aleoosha\HiveMind\Contracts\StateRepository;
+use Aleoosha\HiveMind\Services\MetricsCollector;
+use Aleoosha\HiveMind\Services\SwarmIntelligence;
 use Closure;
 use Illuminate\Http\Request;
-use Aleoosha\HiveMind\Contracts\StateRepository;
-use Illuminate\Support\Facades\Log;
 
-class AltruismMiddleware
+final class AltruismMiddleware
 {
     public function __construct(
-        protected StateRepository $repository
+        private readonly StateRepository $repository,
+        private readonly MetricsCollector $collector,
+        private readonly SwarmIntelligence $intelligence
     ) {}
 
     public function handle(Request $request, Closure $next)
     {
-        $except = config('hive-mind.shedding.except', []);
-        
-        if ($request->is($except)) {
-            return $next($request);
-        }
-        
-        if (!config('hive-mind.shedding.enabled', true)) {
+        // 1. Исключения и статус
+        if (!config('hive-mind.shedding.enabled', true) || $request->is(config('hive-mind.shedding.except', []))) {
             return $next($request);
         }
 
-        $health = $this->repository->getGlobalHealth();
-        $threshold = config('hive-mind.shedding.activation_threshold', 75);
+        // 2. Сбор локальных метрик и обновление состояния ноды в кластере
+        $metrics = $this->collector->getMetrics();
+        $this->repository->updateLocal($metrics);
 
-        if ($health >= $threshold) {
-            if ($this->shouldShed($health, $threshold)) {
-                Log::warning("HiveMind: Load shedding triggered. Mode: " . config('hive-mind.shedding.mode') . ". Health: {$health}%");
+        // 3. Вычисление шанса отсечения через ПИД-регулятор (Интеллект Роя)
+        $dropChance = $this->intelligence->computeSheddingRate($metrics);
 
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Service Temporarily Unavailable',
-                ], 503, [
-                    'Retry-After' => config('hive-mind.shedding.retry_after', 60)
-                ]);
-            }
+        // 4. Принятие решения
+        if ($dropChance > 0 && random_int(1, 100) <= $dropChance) {
+            throw new HiveOvercapacityException(
+                message: "Swarm PID protection active ({$dropChance}%)",
+                health: (int)$dropChance,
+                retryAfter: (int)config('hive-mind.shedding.retry_after', 60)
+            );
         }
 
         return $next($request);
-    }
-
-    /**
-     * Логика принятия решения об отклонении запроса.
-     */
-    protected function shouldShed(int $health, int $threshold): bool
-    {
-        if ($health >= 100) {
-            return true;
-        }
-
-        if (config('hive-mind.shedding.mode', 'static') === 'static') {
-            return true;
-        }
-
-        $chanceOfRejection = (($health - $threshold) / (100 - $threshold)) * 100;
-
-        return random_int(1, 100) <= $chanceOfRejection;
     }
 }

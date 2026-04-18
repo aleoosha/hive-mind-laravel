@@ -1,27 +1,44 @@
 <?php
 
+declare(strict_types=1);
+
+use Aleoosha\HiveMind\Contracts\StateRepository;
+use Aleoosha\HiveMind\DTO\NodeMetrics;
 use Aleoosha\HiveMind\Contracts\Serializer;
-use Aleoosha\HiveMind\Repositories\RedisStateRepository;
 use Illuminate\Support\Facades\Redis;
 
 test('it flushes local cache and forces fresh redis lookup', function () {
     $serializer = app(Serializer::class);
-    $repo = new RedisStateRepository($serializer);
+    $repository = app(StateRepository::class);
 
-    Redis::shouldReceive('keys')->andReturn(['node:1']);
-    Redis::shouldReceive('get')->twice()->andReturn(
-        json_encode(['cpu' => 50, 'memory' => 50]),
-        json_encode(['cpu' => 90, 'memory' => 90])
-    );
+    config(['hive-mind.thresholds.cpu_percent' => 100]);
+    config(['hive-mind.thresholds.memory_percent' => 100]);
 
-    $firstHealth = $repo->getGlobalHealth();
-    expect($firstHealth)->toBe(50);
+    $nodeKey = 'hive_node:1';
+    $time = time();
 
-    $secondHealth = $repo->getGlobalHealth();
-    expect($secondHealth)->toBe(50);
+    // 1. Первая порция данных (Stress 20)
+    $metrics1 = new NodeMetrics(20.0, 10.0, 0.0, 0.0, $time, 'node-1');
+    $data1 = $serializer->pack($metrics1->toArray());
 
-    $repo->flushLocalCache();
+    // 2. Вторая порция данных (Stress 80)
+    $metrics2 = new NodeMetrics(80.0, 10.0, 0.0, 0.0, $time, 'node-1');
+    $data2 = $serializer->pack($metrics2->toArray());
 
-    $thirdHealth = $repo->getGlobalHealth();
-    expect($thirdHealth)->toBe(90);
+    // Настраиваем Redis на последовательный возврат разных данных
+    Redis::shouldReceive('keys')->andReturn([$nodeKey]);
+    // Первый вызов get вернет data1, второй и последующие - data2
+    Redis::shouldReceive('get')->with($nodeKey)->andReturn($data1, $data2);
+
+    // Первый замер - должно быть 20
+    expect($repository->getGlobalHealth())->toBe(20);
+
+    // Второй замер БЕЗ очистки - все еще 20 (работает localCache)
+    expect($repository->getGlobalHealth())->toBe(20);
+
+    // ОЧИСТКА
+    $repository->flushLocalCache();
+
+    // Третий замер ПОСЛЕ очистки - должно стать 80
+    expect($repository->getGlobalHealth())->toBe(80);
 });

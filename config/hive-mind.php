@@ -78,5 +78,7 @@ return [
     'thresholds' => [
         'cpu_percent' => 80,
         'memory_percent' => 90,
+        'db_latency_ms' => 100, 
+        'api_latency_ms' => 500, 
     ],
 ];
