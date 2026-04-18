@@ -38,6 +38,8 @@ final class HivePulseCommand extends Command
         $lastArchiveTime = time();
         $interval = (int)config('hive-mind.broadcast.interval_seconds', 1);
 
+        $hardware = $collector->getHardwareContext();
+
         while (!$this->shouldQuit) {
             // 1. Слой восприятия: Снимаем метрики
             $metrics = $collector->getMetrics();
@@ -62,7 +64,10 @@ final class HivePulseCommand extends Command
 
             // 6. Слой архивации: Запись в SQL раз в минуту
             if (time() - $lastArchiveTime >= 60) {
-                $this->archive($accumulator->flush($activeNodes));
+                $this->archive(
+                    $accumulator->flush($activeNodes), 
+                    $hardware 
+                );
                 $lastArchiveTime = time();
             }
             
