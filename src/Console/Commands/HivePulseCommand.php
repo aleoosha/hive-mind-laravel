@@ -11,6 +11,7 @@ use Aleoosha\HiveMind\Services\MetricsAccumulator;
 use Aleoosha\HiveMind\Services\MetricsCollector;
 use Aleoosha\HiveMind\Services\SwarmIntelligence;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -60,7 +61,7 @@ final class HivePulseCommand extends Command
                 $sheddingRate
             );
             
-            $activeNodes = count(\Illuminate\Support\Facades\Redis::keys('hive_node:*'));
+            $activeNodes = count(Redis::keys('hive_node:*'));
 
             // 6. Слой архивации: Запись в SQL раз в минуту
             if (time() - $lastArchiveTime >= 60) {
@@ -114,7 +115,7 @@ final class HivePulseCommand extends Command
                 'sample_count'   => $snapshot->sampleCount,
                 'node_count'     => $snapshot->nodeCount,
                 'cpu_cores'      => $hardware->cpuCores,
-                'ram_total_gb'   => $hardware->ramTotalGb,
+                'ram_total'   => $hardware->ramTotalGb,
                 'server_os'      => $hardware->os,
                 'php_version'    => $hardware->phpVersion,
                 'created_at'     => now(),
