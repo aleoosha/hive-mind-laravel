@@ -8,10 +8,12 @@ The library provides a mechanism for distributed monitoring of node health and p
 
 ### Key Architecture Components
 
-* Metrics Collector: Low-level monitoring that reads system metrics directly from /proc filesystem (Linux) to minimize overhead.
-* State Aggregation: Decentralized health tracking using Redis with TTL-based node discovery.
-* Adaptive Serialization: Support for multiple serialization strategies (JSON/MessagePack) via a strategy pattern to optimize inter-node traffic.
-* Load Shedding Middleware: An implementation of a backoff algorithm that triggers 503 Service Unavailable responses when the cluster-wide stress threshold is reached.
+* **Autonomous PID Regulation**: Implements a Proportional-Integral-Derivative controller to handle traffic spikes and prevent system resonance.
+* **Self-Tuning Intelligence**: An adaptive tuner that automatically calibrates PID coefficients (Kp, Ki) based on hardware capacity and real-time oscillations.
+* **Hardware-Aware Context**: Automatic scaling of regulation aggressiveness based on CPU core count and available RAM.
+* **Time-Series Archiving**: SQL-based snapshotting for long-term capacity planning and historical analysis.
+* **Visual Diagnostics**: Built-in ASCII charting tools to visualize transition processes and hysteresis loops directly in the CLI.
+
 
 ## Installation
 
@@ -51,6 +53,13 @@ To start broadcasting node metrics, run the background process:
 
 ```bash
 php artisan hive:pulse
+```
+
+### Visual Diagnostics
+
+Visualize the "Swarm Pulse" and PID stability (hysteresis) using the built-in debugger:
+```bash
+php artisan hive:debug-chart
 ```
 
 ### Protection Layer
