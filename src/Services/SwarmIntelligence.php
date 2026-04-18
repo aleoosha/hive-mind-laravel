@@ -11,10 +11,10 @@ use Aleoosha\HiveMind\DTO\PidSettings;
 class SwarmIntelligence
 {
     private const PROFILES = [
-        'cpu_percent'    => ['kp' => 0.6, 'ki' => 0.1, 'kd' => 0.4],
-        'db_latency_ms'  => ['kp' => 0.5, 'ki' => 0.3, 'kd' => 0.2],
-        'api_latency_ms' => ['kp' => 0.5, 'ki' => 0.2, 'kd' => 0.2],
-        'memory_percent' => ['kp' => 1.0, 'ki' => 0.0, 'kd' => 0.1],
+        'cpu_percent'    => ['kp' => 0.6, 'ki' => 0.1, 'kd' => 0.4, 'anti_windup' => 15.0], 
+        'db_latency_ms'  => ['kp' => 0.5, 'ki' => 0.3, 'kd' => 0.2, 'anti_windup' => 30.0],
+        'api_latency_ms' => ['kp' => 0.5, 'ki' => 0.2, 'kd' => 0.2, 'anti_windup' => 20.0],
+        'memory_percent' => ['kp' => 1.0, 'ki' => 0.0, 'kd' => 0.1, 'anti_windup' => 0.0],
     ];
 
     public function __construct(
@@ -40,7 +40,12 @@ class SwarmIntelligence
 
             // 2. Делаем расчет
             $result = $this->calculator->calculate(
-                settings: new PidSettings($params['kp'], $params['ki'], $params['kd']),
+                settings: new PidSettings(
+                    $params['kp'], 
+                    $params['ki'], 
+                    $params['kd'], 
+                    $params['anti_windup']
+                ),
                 target: (float)$thresholds[$metric],
                 current: $this->extractValue($metrics, $metric),
                 lastError: $state->lastError,

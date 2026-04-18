@@ -46,7 +46,7 @@ final class PidCalculator
         if ($dt > 0) {
             $newIntegral += $error * $dt;
             // Anti-Windup: ограничиваем интеграл, чтобы система не "зависла" в режиме отсечения
-            $newIntegral = max(-$settings->antiWindup, min($settings->antiWindup, $newIntegral));
+            $newIntegral = max(0.0, min($settings->antiWindup, $newIntegral));
         }
         $iTerm = $settings->ki * $newIntegral;
 
