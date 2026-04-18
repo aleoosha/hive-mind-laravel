@@ -13,6 +13,22 @@ final  class PidResult
         public readonly float $output,
         public readonly float $integral,
         public readonly float $lastError,
-        public readonly float $timestamp
+        public readonly float $timestamp,
+        public float $kp,
+        public float $ki,
+        public float $kd
     ) {}
+
+    public function toArray(): array
+    {
+        return [
+            'output' => $this->output,
+            'last_error' => $this->lastError,
+            'integral' => $this->integral,
+            'timestamp' => $this->timestamp,
+            'kp' => $this->kp,
+            'ki' => $this->ki,
+            'kd' => $this->kd,
+        ];
+    }
 }

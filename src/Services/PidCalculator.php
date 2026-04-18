@@ -61,7 +61,10 @@ final class PidCalculator
             output: max(0.0, min(100.0, $output)),
             lastError: $error,
             integral: $newIntegral,
-            timestamp: $now
+            timestamp: $now,
+            kp: $settings->kp,
+            ki: $settings->ki,
+            kd: $settings->kd
         );
     }
 }
