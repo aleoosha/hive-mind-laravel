@@ -7,61 +7,51 @@ namespace Aleoosha\HiveMind\Traits;
 use Aleoosha\HiveMind\Services\MetricsCollector;
 use Aleoosha\HiveMind\Services\SwarmIntelligence;
 use Aleoosha\HiveMind\Exceptions\HiveOvercapacityException;
-use Illuminate\Support\Facades\App;
 
+/**
+ * Trait AsHiveMember
+ * 
+ * Provides self-protection for Eloquent models and external API call tracking.
+ */
 trait AsHiveMember
 {
     /**
-     * Автоматическая защита при сохранении модели.
+     * Automatic protection for Model saving.
+     * Prevents DB write operations if the swarm is overloaded.
+     *
+     * @throws HiveOvercapacityException
      */
     public static function bootAsHiveMember(): void
     {
-        if (method_exists(static::class, 'saving')) {
-            static::saving(function () {
-                (new static)->guardAgainstHighLoad();
-            });
-        }
+        static::saving(function () {
+            $intelligence = app(SwarmIntelligence::class);
+            $collector = app(MetricsCollector::class);
+
+            $rate = $intelligence->computeSheddingRate($collector->getMetrics());
+
+            if ($rate > 0 && random_int(1, 100) <= $rate) {
+                throw new HiveOvercapacityException(
+                    message: "Swarm PID protection active ({$rate}%)",
+                    health: (int)$rate,
+                    retryAfter: (int)config('hive-mind.shedding.retry_after', 60)
+                );
+            }
+        });
     }
 
     /**
-     * Обертка для замера внешних API.
+     * Wraps external calls (API, SDK) to record latency for PID analysis.
      */
     protected function hiveExternalCall(callable $callback): mixed
     {
-        $collector = App::make(MetricsCollector::class);
+        $collector = app(MetricsCollector::class);
         $start = microtime(true);
-        
+
         try {
             return $callback();
         } finally {
-            $duration = (microtime(true) - $start) * 1000;
-            $collector->recordApiLatency($duration);
+            $ms = (microtime(true) - $start) * 1000;
+            $collector->recordApiLatency($ms);
         }
-    }
-
-    /**
-     * Проверка на "стресс" Роя на основе ПИД-регулятора.
-     */
-    public function guardAgainstHighLoad(): void
-    {
-        $intelligence = App::make(SwarmIntelligence::class);
-        $metrics = App::make(MetricsCollector::class)->getMetrics();
-        
-        $dropChance = $intelligence->computeSheddingRate($metrics);
-
-        if ($dropChance > 0 && random_int(1, 100) <= $dropChance) {
-            throw new HiveOvercapacityException(
-                message: "Action declined: Swarm PID protection active ({$dropChance}%)",
-                health: (int)$dropChance
-            );
-        }
-    }
-
-    public function isHiveDistressed(): bool
-    {
-        $intelligence = App::make(SwarmIntelligence::class);
-        $metrics = App::make(MetricsCollector::class)->getMetrics();
-        
-        return $intelligence->computeSheddingRate($metrics) > 0;
     }
 }
