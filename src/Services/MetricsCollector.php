@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Services;
 
+use Aleoosha\HiveMind\DTO\HardwareContext;
 use Aleoosha\HiveMind\DTO\NodeMetrics;
 use Illuminate\Support\Facades\DB;
 
@@ -82,7 +83,7 @@ class MetricsCollector
     {
         if (!is_readable('/proc/meminfo')) {
             $memory = memory_get_usage(true);
-            return round($memory / (1024 * 1024), 2); // Fallback в МБ
+            return round($memory / (1024 * 1024), 2);
         }
 
         $meminfo = file_get_contents('/proc/meminfo');
@@ -94,4 +95,33 @@ class MetricsCollector
 
         return $total > 0 ? round((($total - $available) / $total) * 100, 2) : 0.0;
     }
+
+    public function getMemoryLimit(): float
+    {
+        $limit = ini_get('memory_limit');
+        if ($limit === '-1' || !$limit) return 1024 * 1024 * 1024;
+
+        $value = (float)$limit;
+        return match (strtoupper(substr($limit, -1))) {
+            'G' => $value * 1073741824,
+            'M' => $value * 1048576,
+            'K' => $value * 1024,
+            default => $value,
+        };
+    }
+
+    public function getHardwareContext(): HardwareContext
+    {
+        $cores = is_readable('/proc/cpuinfo') 
+            ? (int) shell_exec('nproc') 
+            : 1;
+
+        return new HardwareContext(
+            cpuCores: $cores,
+            ramTotalGb: round($this->getMemoryLimit() / 1024 / 1024 / 1024, 2),
+            os: PHP_OS,
+            phpVersion: PHP_VERSION
+        );
+    }
+
 }

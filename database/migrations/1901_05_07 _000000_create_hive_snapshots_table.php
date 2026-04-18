@@ -32,6 +32,14 @@ return new class extends Migration {
             $table->integer('node_count')->comment('Количество активных нод в рою');
             $table->float('shedding_rate')->default(0)->comment('Итоговый сигнал отсечения ПИД');
 
+            // Конфигурационные пороги на момент записи
+            $table->json('thresholds_snapshot')->comment('Пороги CPU, DB, API на момент записи');
+            
+            // Характеристики железа (Hardware Context)
+            $table->integer('cpu_cores')->nullable();
+            $table->string('ram_total')->nullable();
+            $table->string('server_os')->nullable();
+            
             // Индекс для построения временных рядов (Time-series)
             $table->timestamp('created_at')->index();
         });

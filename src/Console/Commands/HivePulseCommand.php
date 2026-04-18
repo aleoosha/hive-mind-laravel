@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Aleoosha\HiveMind\Console\Commands;
 
 use Aleoosha\HiveMind\Contracts\StateRepository;
+use Aleoosha\HiveMind\DTO\HardwareContext;
 use Aleoosha\HiveMind\DTO\SwarmSnapshot;
 use Aleoosha\HiveMind\Services\MetricsAccumulator;
 use Aleoosha\HiveMind\Services\MetricsCollector;
@@ -89,7 +90,7 @@ final class HivePulseCommand extends Command
      * Сохранение агрегированного снимка в базу данных.
      * Используется для Capacity Planning и анализа трендов.
      */
-    private function archive(SwarmSnapshot $snapshot): void
+    private function archive(SwarmSnapshot $snapshot, HardwareContext $hardware): void
     {
         if ($snapshot->sampleCount === 0) {
             return;
@@ -107,6 +108,10 @@ final class HivePulseCommand extends Command
                 'max_api_latency'=> $snapshot->maxApiLatency,
                 'sample_count'   => $snapshot->sampleCount,
                 'node_count'     => $snapshot->nodeCount,
+                'cpu_cores'      => $hardware->cpuCores,
+                'ram_total_gb'   => $hardware->ramTotalGb,
+                'server_os'      => $hardware->os,
+                'php_version'    => $hardware->phpVersion,
                 'created_at'     => now(),
             ]);
             $this->info("Snapshot saved!");
