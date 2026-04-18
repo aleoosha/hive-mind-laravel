@@ -93,14 +93,21 @@ final class HivePulseCommand extends Command
 
         try {
             DB::table('hive_snapshots')->insert([
-                'health_score' => $snapshot->avgHealth,
-                'db_latency_max' => $snapshot->maxDbLatency,
-                'sample_count' => $snapshot->sampleCount,
-                'created_at' => now(),
+                'avg_health'     => $snapshot->avgHealth,
+                'avg_cpu'        => $snapshot->avgCpu,
+                'max_cpu'        => $snapshot->maxCpu,
+                'avg_db_latency' => $snapshot->avgDbLatency,
+                'max_db_latency' => $snapshot->maxDbLatency,
+                'avg_api_latency'=> $snapshot->avgApiLatency,
+                'max_api_latency'=> $snapshot->maxApiLatency,
+                'sample_count'   => $snapshot->sampleCount,
+                'node_count'     => $snapshot->nodeCount,
+                
+                'created_at'     => now(),
             ]);
+            $this->info("Snapshot saved!");
         } catch (Throwable $e) {
-            // В случае падения БД, процесс не должен прерываться.
-            // Ошибка игнорируется, чтобы сохранить работу Роя.
+            $this->error("Archive Error: " . $e->getMessage());
         }
     }
 }
