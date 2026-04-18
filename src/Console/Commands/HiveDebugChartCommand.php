@@ -24,7 +24,7 @@ final class HiveDebugChartCommand extends Command
             ->reverse();
 
         if ($data->count() < 2) {
-            $this->error('Недостаточно данных для анализа колебаний.');
+            $this->error('Недостаточно данных. Запустите нагрузку на пару минут.');
             return 1;
         }
 
@@ -34,27 +34,19 @@ final class HiveDebugChartCommand extends Command
         return 0;
     }
 
-    /**
-     * График переходного процесса (Время -> Значение)
-     * Позволяет увидеть автоколебания (раскачку системы)
-     */
     private function renderTransitionProcess($data, $w, $h): void
     {
         $this->info("\n--- Переходный процесс (Нагрузка [█] vs Отсечение [░]) ---");
         
         $grid = array_fill(0, $h, array_fill(0, $w, ' '));
-        $healths = $data->pluck('avg_health')->toArray();
-        $pids = $data->pluck('d_term')->toArray(); // Используем d_term как сигнал ПИД
 
-        foreach ($healths as $x => $y) {
-            $yPos = (int)($y / 100 * ($h - 1));
-            $grid[$h - 1 - $yPos][$x] = '█';
-        }
+        foreach ($data->values() as $x => $point) {
+            $yHealth = (int)(($point->avg_health ?? 0) / 100 * ($h - 1));
+            $grid[$h - 1 - $yHealth][$x] = '█';
 
-        foreach ($pids as $x => $y) {
-            $yPos = (int)($y / 100 * ($h - 1));
-            if ($grid[$h - 1 - $yPos][$x] === ' ') {
-                $grid[$h - 1 - $yPos][$x] = '░';
+            $yPid = (int)(($point->shedding_rate ?? 0) / 100 * ($h - 1));
+            if ($grid[$h - 1 - $yPid][$x] === ' ') {
+                $grid[$h - 1 - $yPid][$x] = '░';
             }
         }
 
@@ -63,10 +55,6 @@ final class HiveDebugChartCommand extends Command
         }
     }
 
-    /**
-     * Петля гистерезиса (Нагрузка -> Сигнал)
-     * Показывает, насколько система "запаздывает" с ответом
-     */
     private function renderHysteresis($data, $h): void
     {
         $this->info("\n--- Фазовый портрет / Гистерезис (X: Нагрузка -> Y: Сигнал) ---");
@@ -74,9 +62,10 @@ final class HiveDebugChartCommand extends Command
         $grid = array_fill(0, $h, array_fill(0, $canvasSize, ' '));
 
         foreach ($data as $point) {
-            $x = (int)($point->avg_health / 100 * ($canvasSize - 1));
-            $y = (int)($point->d_term / 100 * ($h - 1));
-            $grid[$h - 1 - $y][$x] = '•';
+            $x = (int)(($point->avg_health ?? 0) / 100 * ($canvasSize - 1));
+            $y = (int)(($point->shedding_rate ?? 0) / 100 * ($h - 1));
+            
+            $grid[max(0, $h - 1 - $y)][max(0, $x)] = '•';
         }
 
         foreach ($grid as $row) {
