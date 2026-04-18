@@ -50,7 +50,7 @@ final class HivePulseCommand extends Command
             // 4. Слой памяти: Накапливаем данные для минутного архива
             $accumulator->push(
                 $repository->getGlobalHealth(),
-                $metrics->dbLatency
+                $metrics
             );
 
             // 5. Слой архивации: Запись в SQL раз в минуту
