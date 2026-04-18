@@ -18,6 +18,7 @@ use Aleoosha\HiveMind\Services\SwarmIntelligence;
 use Aleoosha\HiveMind\DTO\AccumulatorState;
 use Aleoosha\HiveMind\Http\Middleware\AltruismMiddleware;
 use Aleoosha\HiveMind\Console\Commands\HivePulseCommand;
+use Aleoosha\HiveMind\Console\Commands\HiveDebugChartCommand;
 
 final class HiveMindServiceProvider extends ServiceProvider
 {
