@@ -102,7 +102,6 @@ final class HivePulseCommand extends Command
                 'max_api_latency'=> $snapshot->maxApiLatency,
                 'sample_count'   => $snapshot->sampleCount,
                 'node_count'     => $snapshot->nodeCount,
-                
                 'created_at'     => now(),
             ]);
             $this->info("Snapshot saved!");
