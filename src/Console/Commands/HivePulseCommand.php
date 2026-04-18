@@ -60,14 +60,17 @@ final class HivePulseCommand extends Command
                 $this->archive($accumulator->flush($activeNodes));
                 $lastArchiveTime = time();
             }
+            
+            $sheddingRate = $intelligence->computeSheddingRate($metrics);
 
             $this->line(sprintf(
-                "[%s] Node: %s | CPU: %s%% | DB: %s ms | PID Output: %s",
+                "[%s] 🐝 Nodes: %d | 🖥️ CPU: %s%% | 🧠 RAM: %s%% | 🗄️ DB: %s ms | 📢 PID: %s%%",
                 now()->toTimeString(),
-                $metrics->nodeId,
+                $activeNodes,
                 $metrics->cpu,
+                $metrics->memory,
                 $metrics->dbLatency,
-                $intelligence->computeSheddingRate($metrics)
+                $sheddingRate > 0 ? "<fg=red>{$sheddingRate}</>" : "<fg=green>0</>"
             ));
 
             sleep($interval);
