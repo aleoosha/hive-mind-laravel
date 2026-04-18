@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Aleoosha\HiveMind\Tests;
 
 use Aleoosha\HiveMind\Providers\HiveMindServiceProvider;

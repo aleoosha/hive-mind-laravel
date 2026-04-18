@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Aleoosha\HiveMind\Serializers;
 
 use Aleoosha\HiveMind\Contracts\Serializer;

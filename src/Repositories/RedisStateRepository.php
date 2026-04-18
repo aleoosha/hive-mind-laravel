@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Aleoosha\HiveMind\Repositories;
 
 use Aleoosha\HiveMind\Contracts\StateRepository;

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Aleoosha\HiveMind\Services\MetricsCollector;
 use Aleoosha\HiveMind\DTO\NodeMetrics;
 use Illuminate\Support\Facades\DB;
