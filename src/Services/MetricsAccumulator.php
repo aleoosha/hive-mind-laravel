@@ -17,18 +17,12 @@ final class MetricsAccumulator
     public function push(int $health, NodeMetrics $metrics, float $sheddingRate): void
     {
         $this->state->count++;
-        
         $this->state->sumHealth += $health;
-        $this->state->sumShedding += $sheddingRate; 
-        
-        $this->state->sumCpu += $metrics->cpu;
-        $this->state->maxCpu = max($this->state->maxCpu, $metrics->cpu);
-        
-        $this->state->sumDb += $metrics->dbLatency;
-        $this->state->maxDb = max($this->state->maxDb, $metrics->dbLatency);
-        
-        $this->state->sumApi += $metrics->apiLatency;
-        $this->state->maxApi = max($this->state->maxApi, $metrics->apiLatency);
+        $this->state->sumShedding += $sheddingRate;
+
+        $this->updateMetric('Cpu', $metrics->cpu);
+        $this->updateMetric('Db', $metrics->dbLatency);
+        $this->updateMetric('Api', $metrics->apiLatency);
     }
 
     public function flush(int $activeNodes): SwarmSnapshot
@@ -52,5 +46,14 @@ final class MetricsAccumulator
         $this->state->reset();
 
         return $snapshot;
+    }
+
+    private function updateMetric(string $name, float $value): void
+    {
+        $sumKey = "sum{$name}";
+        $maxKey = "max{$name}";
+
+        $this->state->{$sumKey} += $value;
+        $this->state->{$maxKey} = max($this->state->{$maxKey}, $value);
     }
 }

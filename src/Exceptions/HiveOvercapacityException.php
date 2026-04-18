@@ -17,9 +17,6 @@ final class HiveOvercapacityException extends Exception
         parent::__construct($message, 503);
     }
 
-    /**
-     * Автоматический рендеринг ответа Laravel.
-     */
     public function render($request): JsonResponse
     {
         return response()->json([

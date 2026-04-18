@@ -20,11 +20,9 @@ class RedisStateRepository implements StateRepository
 
     public function updateLocal(NodeMetrics $metrics): void
     {
-        $nodeId = config('app.name') . ':' . gethostname();
-        $key = self::PREFIX . $nodeId;
-
+        $key = self::PREFIX . config('app.name') . ':' . gethostname();
         $data = $this->serializer->pack($metrics->toArray());
-
+        
         Redis::setex($key, config('hive-mind.broadcast.ttl_seconds', 5), $data);
     }
 
@@ -35,32 +33,41 @@ class RedisStateRepository implements StateRepository
         }
 
         $keys = Redis::keys(self::PREFIX . '*');
-        if (empty($keys)) return 0;
+        if (empty($keys)) {
+            return 0;
+        }
 
+        $scores = $this->calculateScores($keys);
+
+        return $this->localCache = (int) (empty($scores) ? 0 : array_sum($scores) / count($scores));
+    }
+
+    private function calculateScores(array $keys): array
+    {
+        $scores = [];
         $now = microtime(true);
         $thresholds = config('hive-mind.thresholds');
-        $scores = [];
+        $redisPrefix = config('database.redis.options.prefix', '');
 
         foreach ($keys as $key) {
-            $cleanKey = str_replace(config('database.redis.options.prefix', ''), '', $key);
-            $raw = Redis::get($cleanKey);
+            $raw = Redis::get(str_replace($redisPrefix, '', $key));
             if (!$raw) continue;
 
             $data = $this->serializer->unpack($raw);
+            if (($now - ($data['timestamp'] ?? 0)) > 10) continue;
 
-            if (($now - ($data['timestamp'] ?? 0)) > 10) {
-                continue;
-            }
-
-            $cpuStress = (($data['cpu'] ?? 0) / $thresholds['cpu_percent']) * 100;
-            $memStress = (($data['memory'] ?? 0) / $thresholds['memory_percent']) * 100;
-
-            $scores[] = min(100, max($cpuStress, $memStress));
+            $scores[] = $this->computeStress($data, $thresholds);
         }
 
-        $count = count($scores);
-        
-        return $this->localCache = ($count > 0) ? (int)(array_sum($scores) / $count) : 0;
+        return $scores;
+    }
+
+    private function computeStress(array $data, array $thresholds): float
+    {
+        $cpu = (($data['cpu'] ?? 0) / $thresholds['cpu_percent']) * 100;
+        $mem = (($data['memory'] ?? 0) / $thresholds['memory_percent']) * 100;
+
+        return min(100.0, max($cpu, $mem));
     }
 
     public function flushLocalCache(): void

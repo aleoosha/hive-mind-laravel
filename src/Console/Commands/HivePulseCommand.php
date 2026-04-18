@@ -29,98 +29,68 @@ final class HivePulseCommand extends Command
         MetricsAccumulator $accumulator
     ): int {
         $this->info('HiveMind: Swarm Consciousness active...');
+        $this->registerSignals();
 
+        $lastArchiveTime = time();
+        $interval = (int)config('hive-mind.broadcast.interval_seconds', 1);
+        $hardware = $collector->getHardwareContext();
+
+        while (!$this->shouldQuit) {
+            $metrics = $collector->getMetrics();
+            $sheddingRate = $intelligence->computeSheddingRate($metrics);
+            
+            $repository->updateLocal($metrics);
+            $accumulator->push($repository->getGlobalHealth(), $metrics, $sheddingRate);
+
+            $nodes = count(Redis::keys('hive_node:*'));
+
+            if (time() - $lastArchiveTime >= 60) {
+                $this->archive($accumulator->flush($nodes), $hardware);
+                $lastArchiveTime = time();
+            }
+
+            $this->displayPulse($nodes, $metrics, $sheddingRate);
+            sleep($interval);
+        }
+
+        $this->info('HiveMind: Graceful shutdown complete.');
+        return self::SUCCESS;
+    }
+
+    private function registerSignals(): void
+    {
         if (function_exists('pcntl_signal')) {
             pcntl_async_signals(true);
             pcntl_signal(SIGINT, fn() => $this->shouldQuit = true);
             pcntl_signal(SIGTERM, fn() => $this->shouldQuit = true);
         }
-
-        $lastArchiveTime = time();
-        $interval = (int)config('hive-mind.broadcast.interval_seconds', 1);
-
-        $hardware = $collector->getHardwareContext();
-
-        while (!$this->shouldQuit) {
-            // 1. Слой восприятия: Снимаем метрики
-            $metrics = $collector->getMetrics();
-    
-            // 2. Считаем сигнал ПИД-регулятора ОДИН РАЗ
-            $sheddingRate = $intelligence->computeSheddingRate($metrics);
-
-            // 3. Слой коммуникации: Обновляем Heartbeat в Redis
-            $repository->updateLocal($metrics);
-
-            // 4. Слой интеллекта: Расчет ПИД-коэффициентов
-            $intelligence->computeSheddingRate($metrics);
-
-            // 5. Слой памяти: Накапливаем данные для минутного архива
-            $accumulator->push(
-                $repository->getGlobalHealth(),
-                $metrics, 
-                $sheddingRate
-            );
-            
-            $activeNodes = count(Redis::keys('hive_node:*'));
-
-            // 6. Слой архивации: Запись в SQL раз в минуту
-            if (time() - $lastArchiveTime >= 60) {
-                $this->archive(
-                    $accumulator->flush($activeNodes), 
-                    $hardware 
-                );
-                $lastArchiveTime = time();
-            }
-            
-            $sheddingRate = $intelligence->computeSheddingRate($metrics);
-
-            $this->line(sprintf(
-                "[%s] 🐝 Nodes: %d | 🖥️ CPU: %s%% | 🧠 RAM: %s%% | 🗄️ DB: %s ms | 📢 PID: %s%%",
-                now()->toTimeString(),
-                $activeNodes,
-                $metrics->cpu,
-                $metrics->memory,
-                $metrics->dbLatency,
-                $sheddingRate > 0 ? "<fg=red>{$sheddingRate}</>" : "<fg=green>0</>"
-            ));
-
-            sleep($interval);
-        }
-
-        $this->info('HiveMind: Graceful shutdown complete.');
-        
-        return self::SUCCESS;
     }
 
-    /**
-     * Сохранение агрегированного снимка в базу данных.
-     * Используется для Capacity Planning и анализа трендов.
-     */
+    private function displayPulse(int $nodes, $metrics, float $rate): void
+    {
+        $pidOutput = $rate > 0 ? "<fg=red>{$rate}</>%" : "<fg=green>0</>%";
+        
+        $this->line(sprintf(
+            "[%s] 🐝 Nodes: %d | 🖥️ CPU: %s%% | 🧠 RAM: %s%% | 🗄️ DB: %s ms | 📢 PID: %s",
+            now()->toTimeString(),
+            $nodes,
+            $metrics->cpu,
+            $metrics->memory,
+            $metrics->dbLatency,
+            $pidOutput
+        ));
+    }
+
     private function archive(SwarmSnapshot $snapshot, HardwareContext $hardware): void
     {
-        if ($snapshot->sampleCount === 0) {
-            return;
-        }
+        if ($snapshot->sampleCount === 0) return;
 
         try {
-            DB::table('hive_snapshots')->insert([
-                'avg_health' => $snapshot->avgHealth,
-                'shedding_rate' => $snapshot->avgShedding, 
-                'avg_cpu' => $snapshot->avgCpu,
-                'max_cpu' => $snapshot->maxCpu,
-                'avg_db_latency' => $snapshot->avgDbLatency,
-                'max_db_latency' => $snapshot->maxDbLatency,
-                'avg_api_latency'=> $snapshot->avgApiLatency,
-                'max_api_latency'=> $snapshot->maxApiLatency,
-                'sample_count' => $snapshot->sampleCount,
-                'node_count' => $snapshot->nodeCount,
-                'cpu_cores' => $hardware->cpuCores,
-                'ram_total' => $hardware->ramTotalGb,
-                'server_os' => $hardware->os,
-                'php_version' => $hardware->phpVersion,
-                'thresholds_snapshot' => $snapshot->thresholdsSnapshot, 
-                'created_at' => now(),
-            ]);
+            DB::table('hive_snapshots')->insert(array_merge(
+                $snapshot->toArray(),
+                $hardware->toArray(),
+                ['created_at' => now()]
+            ));
             $this->info("Snapshot saved!");
         } catch (Throwable $e) {
             $this->error("Archive Error: " . $e->getMessage());

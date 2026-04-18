@@ -12,37 +12,31 @@ return new class extends Migration {
         Schema::create('hive_snapshots', function (Blueprint $table) {
             $table->id();
 
-            // Общие показатели здоровья
-            $table->float('avg_health')->comment('Среднее здоровье роя за период');
-            
-            // Нагрузка CPU
+            // Swarm Health & PID
+            $table->float('avg_health');
+            $table->float('shedding_rate')->default(0);
+
+            // Resource Metrics
             $table->float('avg_cpu');
             $table->float('max_cpu');
-
-            // Задержки БД (самый частый Bottleneck)
             $table->float('avg_db_latency');
             $table->float('max_db_latency');
-
-            // Задержки внешних API
             $table->float('avg_api_latency');
             $table->float('max_api_latency');
 
-            // Масштабируемость
-            $table->integer('sample_count')->comment('Количество замеров в этом снимке');
-            $table->integer('node_count')->comment('Количество активных нод в рою');
-            $table->float('shedding_rate')->default(0)->comment('Итоговый сигнал отсечения ПИД');
+            // Capacity & Scale
+            $table->integer('sample_count');
+            $table->integer('node_count');
 
-            // Конфигурационные пороги на момент записи
-            $table->json('thresholds_snapshot')->comment('Пороги CPU, DB, API на момент записи');
-            
-            // Характеристики железа (Hardware Context)
+            // System Context
+            $table->json('thresholds_snapshot');
             $table->integer('cpu_cores')->nullable();
-            $table->string('ram_total')->nullable();
+            $table->float('ram_total_gb')->nullable();
             $table->string('server_os')->nullable();
-            $table->string('php_version');
+            $table->string('php_version')->nullable();
 
-            // Индекс для построения временных рядов (Time-series)
-            $table->timestamp('created_at')->index();
+            // Time-series indexing
+            $table->timestamp('created_at')->useCurrent()->index();
         });
     }
 

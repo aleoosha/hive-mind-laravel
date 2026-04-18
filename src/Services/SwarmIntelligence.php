@@ -8,6 +8,7 @@ use Aleoosha\HiveMind\Contracts\PidStateRepository;
 use Aleoosha\HiveMind\DTO\NodeMetrics;
 use Aleoosha\HiveMind\DTO\PidSettings;
 use Aleoosha\HiveMind\DTO\PidResult;
+use Aleoosha\HiveMind\DTO\HardwareContext;
 
 class SwarmIntelligence
 {
@@ -28,70 +29,58 @@ class SwarmIntelligence
     public function computeSheddingRate(NodeMetrics $metrics): float
     {
         $thresholds = config('hive-mind.thresholds', []);
-        $signals = [0.0];
-        
-        // 1. Контекст железа для адаптации базы
         $hardware = $this->collector->getHardwareContext();
+        $signals = [0.0];
 
         foreach (self::PROFILES as $metric => $params) {
-            if (!isset($thresholds[$metric])) continue;
-
-            // 2. Получаем состояние из Redis (там уже лежат $state->kp и $state->ki)
-            $state = $this->stateRepository->getState($metric);
-            
-            $target = (float)$thresholds[$metric];
-            $currentValue = $this->extractValue($metrics, $metric);
-            $currentError = ($currentValue - $target) / max($target, 0.0001);
-
-            // 3. Рассчитываем базовый эталон под железо
-            $baseKp = $params['kp'] / (1 + log10($hardware->cpuCores));
-            $baseSettings = new PidSettings(
-                $baseKp, 
-                $params['ki'], 
-                $params['kd'], 
-                $params['anti_windup']
-            );
-
-            // 4. Тюнер берет базу и текущий опыт из $state
-            // Если в Redis kp еще 0 (первый запуск), тюнер внутри сам подхватит базу
-            $activeSettings = $this->tuner->tune($baseSettings, $state, $currentError);
-
-            // 5. Расчет ПИД с тем, что выдал тюнер
-            $result = $this->calculator->calculate(
-                $activeSettings,
-                $target,
-                $currentValue,
-                $state->lastError,
-                $state->integral,
-                $state->timestamp
-            );
-
-            // 6. Сохраняем в Redis обновленный результат с коэффициентами
-            $this->stateRepository->saveState($metric, new PidResult(
-                output: $result->output,
-                lastError: $result->lastError,
-                integral: $result->integral,
-                timestamp: $result->timestamp,
-                kp: $activeSettings->kp,
-                ki: $activeSettings->ki,
-                kd: $activeSettings->kd
-            ));
-
-            $signals[] = $result->output;
+            if (isset($thresholds[$metric])) {
+                $signals[] = $this->processMetric($metric, $params, $metrics, (float)$thresholds[$metric], $hardware);
+            }
         }
 
-
         return (float)max($signals);
+    }
+
+    private function processMetric(string $metric, array $params, NodeMetrics $metrics, float $target, HardwareContext $hw): float
+    {
+        $state = $this->stateRepository->getState($metric);
+        $currentValue = $this->extractValue($metrics, $metric);
+        $error = ($currentValue - $target) / max($target, 0.0001);
+
+        $settings = $this->prepareSettings($params, $hw, $state, $error);
+        
+        $result = $this->calculator->calculate(
+            $settings, $target, $currentValue, $state->lastError, $state->integral, $state->timestamp
+        );
+
+        $this->persistState($metric, $result, $settings);
+
+        return $result->output;
+    }
+
+    private function prepareSettings(array $params, HardwareContext $hw, PidResult $state, float $error): PidSettings
+    {
+        $baseKp = $params['kp'] / (1 + log10($hw->cpuCores));
+        $base = new PidSettings($baseKp, $params['ki'], $params['kd'], $params['anti_windup']);
+
+        return $this->tuner->tune($base, $state, $error);
+    }
+
+    private function persistState(string $metric, PidResult $res, PidSettings $set): void
+    {
+        $this->stateRepository->saveState($metric, new PidResult(
+            $res->output, $res->lastError, $res->integral, $res->timestamp, $set->kp, $set->ki, $set->kd
+        ));
     }
 
     private function extractValue(NodeMetrics $metrics, string $key): float
     {
         return match ($key) {
-            'cpu_percent' => $metrics->cpu,
+            'cpu_percent'    => $metrics->cpu,
             'memory_percent' => $metrics->memory,
-            'db_latency_ms' => $metrics->dbLatency,
+            'db_latency_ms'  => $metrics->dbLatency,
             'api_latency_ms' => $metrics->apiLatency,
-            default => 0.0,
+            default          => 0.0,
         };
     }
 }

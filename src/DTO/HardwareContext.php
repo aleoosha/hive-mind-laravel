@@ -12,4 +12,14 @@ final class HardwareContext
         public readonly string $os,
         public readonly string $phpVersion
     ) {}
+
+    public function toArray(): array
+    {
+        return [
+            'cpu_cores'    => $this->cpuCores,
+            'ram_total_gb' => $this->ramTotalGb,
+            'server_os'    => $this->os,
+            'php_version'  => $this->phpVersion,
+        ];
+    }
 }

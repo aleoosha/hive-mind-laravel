@@ -9,35 +9,37 @@ use Aleoosha\HiveMind\DTO\PidSettings;
 
 final class PidTuner
 {
-    /**
-     * Адаптирует настройки ПИД на основе анализа поведения.
-     */
     public function tune(PidSettings $base, PidResult $lastResult, float $currentError): PidSettings
     {
-        // Берем текущие рабочие коэффициенты (из Redis или базу)
-        $workingKp = ($lastResult->kp > 0) ? $lastResult->kp : $base->kp;
-        $workingKi = ($lastResult->ki > 0) ? $lastResult->ki : $base->ki;
+        $kp = $lastResult->kp > 0 ? $lastResult->kp : $base->kp;
+        $ki = $lastResult->ki > 0 ? $lastResult->ki : $base->ki;
 
-        $newKp = $workingKp;
-        $newKi = $workingKi;
-
-        // 1. Детектор автоколебаний (Резонанс)
-        if (($currentError > 0 && $lastResult->lastError < 0) || 
-            ($currentError < 0 && $lastResult->lastError > 0)) {
-            $newKp = $workingKp * 0.90; 
-        }
-
-        // 2. Детектор застоя (Усиливаем интеграл)
-        // Если ошибка существенна и стабильна
-        if (abs($currentError) > 0.1 && abs($currentError - $lastResult->lastError) < 0.05) {
-            $newKi = $workingKi + 0.05;
-        }
+        $kp = $this->detectResonance($currentError, $lastResult->lastError, $kp);
+        $ki = $this->detectStagnation($currentError, $lastResult->lastError, $ki);
 
         return new PidSettings(
-            kp: max($base->kp * 0.1, min($base->kp * 2.0, $newKp)),
-            ki: max(0.0, min(1.0, $newKi)),
+            kp: max($base->kp * 0.1, min($base->kp * 2.0, $kp)),
+            ki: max(0.0, min(1.0, $ki)),
             kd: $base->kd,
             antiWindup: $base->antiWindup
         );
+    }
+
+    private function detectResonance(float $current, float $last, float $kp): float
+    {
+        if (($current > 0 && $last < 0) || ($current < 0 && $last > 0)) {
+            return $kp * 0.90;
+        }
+
+        return $kp;
+    }
+
+    private function detectStagnation(float $current, float $last, float $ki): float
+    {
+        if (abs($current) > 0.1 && abs($current - $last) < 0.05) {
+            return $ki + 0.05;
+        }
+
+        return $ki;
     }
 }

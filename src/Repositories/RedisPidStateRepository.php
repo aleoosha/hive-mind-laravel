@@ -13,6 +13,7 @@ use Throwable;
 final class RedisPidStateRepository implements PidStateRepository
 {
     private const PREFIX = 'hive_pid:';
+    private const TTL = 86400;
 
     public function __construct(
         private readonly Serializer $serializer
@@ -23,29 +24,37 @@ final class RedisPidStateRepository implements PidStateRepository
         $raw = Redis::get(self::PREFIX . $metric);
 
         if (!$raw) {
-            return new PidResult(0.0, 0.0, 0.0, microtime(true), 0.0, 0.0, 0.0);
+            return $this->emptyResult();
         }
 
         try {
-            $data = $this->serializer->unpack($raw);
-            return new PidResult(
-                (float)($data['output'] ?? 0.0),
-                (float)($data['last_error'] ?? 0.0),
-                (float)($data['integral'] ?? 0.0),
-                (float)($data['timestamp'] ?? microtime(true)),
-                (float)($data['kp'] ?? 0.0),
-                (float)($data['ki'] ?? 0.0),
-                (float)($data['kd'] ?? 0.0)
-            );
+            return $this->mapToDto($this->serializer->unpack($raw));
         } catch (Throwable) {
-            return new PidResult(0.0, 0.0, 0.0, microtime(true), 0.0, 0.0, 0.0);
+            return $this->emptyResult();
         }
     }
 
     public function saveState(string $metric, PidResult $result): void
     {
         $data = $this->serializer->pack($result->toArray());
-        // Храним состояние 24 часа, чтобы опыт не пропадал при перезагрузках
-        Redis::setex(self::PREFIX . $metric, 86400, $data);
+        Redis::setex(self::PREFIX . $metric, self::TTL, $data);
+    }
+
+    private function mapToDto(array $data): PidResult
+    {
+        return new PidResult(
+            (float)($data['output'] ?? 0.0),
+            (float)($data['last_error'] ?? 0.0),
+            (float)($data['integral'] ?? 0.0),
+            (float)($data['timestamp'] ?? microtime(true)),
+            (float)($data['kp'] ?? 0.0),
+            (float)($data['ki'] ?? 0.0),
+            (float)($data['kd'] ?? 0.0)
+        );
+    }
+
+    private function emptyResult(): PidResult
+    {
+        return new PidResult(0.0, 0.0, 0.0, microtime(true), 0.0, 0.0, 0.0);
     }
 }

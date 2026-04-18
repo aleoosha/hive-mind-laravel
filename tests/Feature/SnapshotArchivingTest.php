@@ -46,7 +46,7 @@ test('it correctly stores full snapshot context in database', function () {
         'sample_count'   => $snapshot->sampleCount,
         'node_count'     => $snapshot->nodeCount,
         'cpu_cores'      => $hardware->cpuCores,
-        'ram_total'      => $hardware->ramTotalGb,
+        'ram_total_gb'      => $hardware->ramTotalGb,
         'server_os'      => $hardware->os,
         'php_version'    => $hardware->phpVersion,
         'created_at'     => now(),

@@ -16,22 +16,9 @@ class MetricsCollector
 
     public function __construct()
     {
-        $this->listenDb();
+        DB::listen(fn($query) => $this->dbTotalTime += $query->time);
     }
 
-    /**
-     * Автоматический замер всех SQL запросов.
-     */
-    private function listenDb(): void
-    {
-        DB::listen(function ($query) {
-            $this->dbTotalTime += $query->time;
-        });
-    }
-
-    /**
-     * Ручной замер внешних API через Трейт.
-     */
     public function recordApiLatency(float $milliseconds): void
     {
         $this->apiTotalTime += $milliseconds;
@@ -51,39 +38,36 @@ class MetricsCollector
 
     protected function getCpuUsage(): float
     {
-        if (!is_readable('/proc/stat')) {
+        $stats = $this->parseProcStat();
+        if (!$stats) return 0.0;
+
+        if (empty(self::$lastCpuStats)) {
+            self::$lastCpuStats = $stats;
             return 0.0;
         }
 
-        $content = file_get_contents('/proc/stat');
-        if (!$content) return 0.0;
+        $totalDelta = $stats['total'] - self::$lastCpuStats['total'];
+        $idleDelta = $stats['idle'] - self::$lastCpuStats['idle'];
+        self::$lastCpuStats = $stats;
 
-        $data = explode(' ', preg_replace('/\s+/', ' ', trim($content)));
-        $current = [
+        return $totalDelta > 0 ? round(100 * ($totalDelta - $idleDelta) / $totalDelta, 2) : 0.0;
+    }
+
+    private function parseProcStat(): ?array
+    {
+        if (!is_readable('/proc/stat')) return null;
+        $data = explode(' ', preg_replace('/\s+/', ' ', trim(file_get_contents('/proc/stat'))));
+        
+        return [
             'idle' => (int)$data[4],
             'total' => (int)array_sum(array_slice($data, 1, 7))
         ];
-
-        if (empty(self::$lastCpuStats)) {
-            self::$lastCpuStats = $current;
-            return 0.0;
-        }
-
-        $totalDelta = $current['total'] - self::$lastCpuStats['total'];
-        $idleDelta = $current['idle'] - self::$lastCpuStats['idle'];
-        
-        self::$lastCpuStats = $current;
-
-        return $totalDelta > 0 
-            ? round(100 * ($totalDelta - $idleDelta) / $totalDelta, 2) 
-            : 0.0;
     }
 
     protected function getMemoryUsage(): float
     {
         if (!is_readable('/proc/meminfo')) {
-            $memory = memory_get_usage(true);
-            return round($memory / (1024 * 1024), 2);
+            return round(memory_get_usage(true) / 1048576, 2);
         }
 
         $meminfo = file_get_contents('/proc/meminfo');
@@ -96,32 +80,31 @@ class MetricsCollector
         return $total > 0 ? round((($total - $available) / $total) * 100, 2) : 0.0;
     }
 
+    public function getHardwareContext(): HardwareContext
+    {
+        $cores = is_readable('/proc/cpuinfo') ? (int) shell_exec('nproc') : 1;
+
+        return new HardwareContext(
+            cpuCores: $cores ?: 1,
+            ramTotalGb: round($this->getMemoryLimit() / 1073741824, 2),
+            os: PHP_OS,
+            phpVersion: PHP_VERSION
+        );
+    }
+
     public function getMemoryLimit(): float
     {
         $limit = ini_get('memory_limit');
-        if ($limit === '-1' || !$limit) return 1024 * 1024 * 1024;
+        if ($limit === '-1' || !$limit) return 1073741824;
 
         $value = (float)$limit;
-        return match (strtoupper(substr($limit, -1))) {
+        $unit = strtoupper(substr($limit, -1));
+
+        return match ($unit) {
             'G' => $value * 1073741824,
             'M' => $value * 1048576,
             'K' => $value * 1024,
             default => $value,
         };
     }
-
-    public function getHardwareContext(): HardwareContext
-    {
-        $cores = is_readable('/proc/cpuinfo') 
-            ? (int) shell_exec('nproc') 
-            : 1;
-
-        return new HardwareContext(
-            cpuCores: $cores,
-            ramTotalGb: round($this->getMemoryLimit() / 1024 / 1024 / 1024, 2),
-            os: PHP_OS,
-            phpVersion: PHP_VERSION
-        );
-    }
-
 }

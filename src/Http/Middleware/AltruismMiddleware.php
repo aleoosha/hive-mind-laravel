@@ -19,29 +19,41 @@ final class AltruismMiddleware
         private readonly SwarmIntelligence $intelligence
     ) {}
 
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next): mixed
     {
-        // 1. Исключения и статус
-        if (!config('hive-mind.shedding.enabled', true) || $request->is(config('hive-mind.shedding.except', []))) {
+        if ($this->shouldSkip($request)) {
             return $next($request);
         }
 
-        // 2. Сбор локальных метрик и обновление состояния ноды в кластере
         $metrics = $this->collector->getMetrics();
         $this->repository->updateLocal($metrics);
 
-        // 3. Вычисление шанса отсечения через ПИД-регулятор (Интеллект Роя)
         $dropChance = $this->intelligence->computeSheddingRate($metrics);
 
-        // 4. Принятие решения
-        if ($dropChance > 0 && random_int(1, 100) <= $dropChance) {
-            throw new HiveOvercapacityException(
-                message: "Swarm PID protection active ({$dropChance}%)",
-                health: (int)$dropChance,
-                retryAfter: (int)config('hive-mind.shedding.retry_after', 60)
-            );
+        if ($this->shouldShed($dropChance)) {
+            $this->terminateRequest($dropChance);
         }
 
         return $next($request);
+    }
+
+    private function shouldSkip(Request $request): bool
+    {
+        return !config('hive-mind.shedding.enabled', true) 
+            || $request->is(config('hive-mind.shedding.except', []));
+    }
+
+    private function shouldShed(float $chance): bool
+    {
+        return $chance > 0 && random_int(1, 100) <= $chance;
+    }
+
+    private function terminateRequest(float $chance): void
+    {
+        throw new HiveOvercapacityException(
+            message: "Swarm PID protection active ({$chance}%)",
+            health: (int)$chance,
+            retryAfter: (int)config('hive-mind.shedding.retry_after', 60)
+        );
     }
 }
