@@ -79,7 +79,10 @@ final class HiveMindServiceProvider extends ServiceProvider
 
     private function registerCommands(): void
     {
-        $this->commands([HivePulseCommand::class]);
+        $this->commands([
+            HivePulseCommand::class,
+            HiveDebugChartCommand::class,
+        ]);
     }
 
     private function setupLifecycle(): void
