@@ -44,6 +44,7 @@ final class MetricsAccumulator
             avgApiLatency: $this->state->sumApi / $count,
             maxApiLatency: $this->state->maxApi,
             avgShedding: $this->state->sumShedding / $count,
+            thresholdsSnapshot: json_encode(config('hive-mind.thresholds')),
             sampleCount: $this->state->count,
             nodeCount: $activeNodes
         );

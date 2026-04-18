@@ -39,7 +39,8 @@ return new class extends Migration {
             $table->integer('cpu_cores')->nullable();
             $table->string('ram_total')->nullable();
             $table->string('server_os')->nullable();
-            
+            $table->string('php_version');
+
             // Индекс для построения временных рядов (Time-series)
             $table->timestamp('created_at')->index();
         });

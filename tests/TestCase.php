@@ -22,4 +22,9 @@ class TestCase extends Orchestra
         $app['config']->set('hive-mind.shedding.retry_after', 60);
         $app['config']->set('database.redis.options.prefix', 'test_');
     }
+
+    protected function defineDatabaseMigrations()
+    {
+        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+    }
 }
