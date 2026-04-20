@@ -38,7 +38,7 @@ final class HivePulseCommand extends Command
         while (!$this->shouldQuit) {
             $metrics = $collector->getMetrics();
             $sheddingRate = $intelligence->computeSheddingRate($metrics);
-            
+
             $repository->updateLocal($metrics);
             $accumulator->push($repository->getGlobalHealth(), $metrics, $sheddingRate);
 
@@ -54,6 +54,7 @@ final class HivePulseCommand extends Command
         }
 
         $this->info('HiveMind: Graceful shutdown complete.');
+
         return self::SUCCESS;
     }
 
@@ -83,7 +84,9 @@ final class HivePulseCommand extends Command
 
     private function archive(SwarmSnapshot $snapshot, HardwareContext $hardware): void
     {
-        if ($snapshot->sampleCount === 0) return;
+        if ($snapshot->sampleCount === 0) {
+            return;
+        }
 
         try {
             DB::table('hive_snapshots')->insert(array_merge(
@@ -91,7 +94,8 @@ final class HivePulseCommand extends Command
                 $hardware->toArray(),
                 ['created_at' => now()]
             ));
-            $this->info("Snapshot saved!");
+            
+            $this->info("Snapshot saved to database.");
         } catch (Throwable $e) {
             $this->error("Archive Error: " . $e->getMessage());
         }

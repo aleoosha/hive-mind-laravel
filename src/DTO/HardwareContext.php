@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\DTO;
 
+use Aleoosha\HiveMind\Support\FixedPoint;
+
 final class HardwareContext
 {
     public function __construct(
@@ -17,7 +19,7 @@ final class HardwareContext
     {
         return [
             'cpu_cores'    => $this->cpuCores,
-            'ram_total_gb' => $this->ramTotalGb,
+            'ram_total_gb' => FixedPoint::fromFloat($this->ramTotalGb)->toInt(),
             'server_os'    => $this->os,
             'php_version'  => $this->phpVersion,
         ];
