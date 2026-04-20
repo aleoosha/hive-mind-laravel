@@ -84,8 +84,6 @@ final class HiveDebugChartCommand extends Command
 
     private function drawGrid(array $grid, int $h, int $w, string $xLabel): void
     {
-        $yAxisLabelWidth = 6;
-
         foreach ($grid as $y => $row) {
             $label = match($y) {
                 0 => '100%',
@@ -94,10 +92,10 @@ final class HiveDebugChartCommand extends Command
                 default => '    '
             };
             
-            $this->line("<fg=gray>{$label} ┨</>" . implode('', $row));
+            $this->line("<fg=gray>{$label} |</>" . implode('', $row));
         }
 
-        $padding = str_repeat(' ', $yAxisLabelWidth); 
+        $padding = str_repeat(' ', 6); 
         $xAxis = str_repeat('━', $w);
         
         $this->line("{$padding}<fg=gray>┗{$xAxis}▶ {$xLabel}</>");
