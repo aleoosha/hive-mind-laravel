@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\DTO;
 
+use Aleoosha\HiveMind\Support\FixedPoint;
+
 final class SwarmSnapshot
 {
     public function __construct(
@@ -23,14 +25,14 @@ final class SwarmSnapshot
     public function toArray(): array
     {
         return [
-            'avg_health'          => $this->avgHealth,
-            'avg_cpu'             => $this->avgCpu,
-            'max_cpu'             => $this->maxCpu,
-            'avg_db_latency'      => $this->avgDbLatency,
-            'max_db_latency'      => $this->maxDbLatency,
-            'avg_api_latency'     => $this->avgApiLatency,
-            'max_api_latency'     => $this->maxApiLatency,
-            'shedding_rate'       => $this->avgShedding,
+            'avg_health'          => FixedPoint::fromFloat($this->avgHealth)->toInt(),
+            'avg_cpu'             => FixedPoint::fromFloat($this->avgCpu)->toInt(),
+            'max_cpu'             => FixedPoint::fromFloat($this->maxCpu)->toInt(),
+            'avg_db_latency'      => FixedPoint::fromFloat($this->avgDbLatency)->toInt(),
+            'max_db_latency'      => FixedPoint::fromFloat($this->maxDbLatency)->toInt(),
+            'avg_api_latency'     => FixedPoint::fromFloat($this->avgApiLatency)->toInt(),
+            'max_api_latency'     => FixedPoint::fromFloat($this->maxApiLatency)->toInt(),
+            'shedding_rate'       => FixedPoint::fromFloat($this->avgShedding)->toInt(),
             'thresholds_snapshot' => $this->thresholdsSnapshot,
             'sample_count'        => $this->sampleCount,
             'node_count'          => $this->nodeCount,

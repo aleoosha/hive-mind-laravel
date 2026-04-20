@@ -7,7 +7,9 @@ namespace Aleoosha\HiveMind\Repositories;
 use Aleoosha\HiveMind\Contracts\StateRepository;
 use Aleoosha\HiveMind\Contracts\Serializer;
 use Aleoosha\HiveMind\DTO\NodeMetrics;
+use Aleoosha\HiveMind\Support\FixedPoint;
 use Illuminate\Support\Facades\Redis;
+use Throwable;
 
 class RedisStateRepository implements StateRepository
 {
@@ -20,10 +22,14 @@ class RedisStateRepository implements StateRepository
 
     public function updateLocal(NodeMetrics $metrics): void
     {
-        $key = self::PREFIX . config('app.name') . ':' . gethostname();
-        $data = $this->serializer->pack($metrics->toArray());
-        
-        Redis::setex($key, config('hive-mind.broadcast.ttl_seconds', 5), $data);
+        try {
+            $key = self::PREFIX . config('app.name') . ':' . gethostname();
+            $data = $this->serializer->pack($metrics->toArray());
+            
+            Redis::setex($key, (int)config('hive-mind.broadcast.ttl_seconds', 5), $data);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     public function getGlobalHealth(): int
@@ -32,14 +38,19 @@ class RedisStateRepository implements StateRepository
             return $this->localCache;
         }
 
-        $keys = Redis::keys(self::PREFIX . '*');
-        if (empty($keys)) {
+        try {
+            $keys = Redis::keys(self::PREFIX . '*');
+            if (empty($keys)) {
+                return 0;
+            }
+
+            $scores = $this->calculateScores($keys);
+
+            $avg = empty($scores) ? 0 : array_sum($scores) / count($scores);
+            return $this->localCache = FixedPoint::fromFloat((float)$avg)->toInt();
+        } catch (Throwable) {
             return 0;
         }
-
-        $scores = $this->calculateScores($keys);
-
-        return $this->localCache = (int) (empty($scores) ? 0 : array_sum($scores) / count($scores));
     }
 
     private function calculateScores(array $keys): array
@@ -47,14 +58,14 @@ class RedisStateRepository implements StateRepository
         $scores = [];
         $now = microtime(true);
         $thresholds = config('hive-mind.thresholds');
-        $redisPrefix = config('database.redis.options.prefix', '');
+        $redisPrefix = (string)config('database.redis.options.prefix', '');
 
         foreach ($keys as $key) {
             $raw = Redis::get(str_replace($redisPrefix, '', $key));
             if (!$raw) continue;
 
             $data = $this->serializer->unpack($raw);
-            if (($now - ($data['timestamp'] ?? 0)) > 10) continue;
+            if (($now - (float)($data['timestamp'] ?? 0)) > 10) continue;
 
             $scores[] = $this->computeStress($data, $thresholds);
         }
@@ -64,8 +75,8 @@ class RedisStateRepository implements StateRepository
 
     private function computeStress(array $data, array $thresholds): float
     {
-        $cpu = (($data['cpu'] ?? 0) / $thresholds['cpu_percent']) * 100;
-        $mem = (($data['memory'] ?? 0) / $thresholds['memory_percent']) * 100;
+        $cpu = (($data['cpu'] ?? 0) / max($thresholds['cpu_percent'], 1)) * 100;
+        $mem = (($data['memory'] ?? 0) / max($thresholds['memory_percent'], 1)) * 100;
 
         return min(100.0, max($cpu, $mem));
     }

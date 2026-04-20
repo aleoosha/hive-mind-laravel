@@ -37,7 +37,8 @@
         "pestphp/pest": "^3.0",
         "pestphp/pest-plugin-laravel": "^3.0",
         "phpunit/phpunit": "^11.0",
-        "orchestra/testbench": "^9.0"
+        "orchestra/testbench": "^9.0",
+        "laravel/pint": "^1.29"
     },
     "config": {
         "allow-plugins": {

@@ -7,7 +7,7 @@ namespace Aleoosha\HiveMind\Services;
 use Aleoosha\HiveMind\Contracts\PidStateRepository;
 use Aleoosha\HiveMind\DTO\NodeMetrics;
 use Aleoosha\HiveMind\DTO\PidSettings;
-use Aleoosha\HiveMind\DTO\PidResult;
+use Aleoosha\HiveMind\DTO\FixedPidResult;
 use Aleoosha\HiveMind\DTO\HardwareContext;
 
 class SwarmIntelligence
@@ -45,32 +45,31 @@ class SwarmIntelligence
     {
         $state = $this->stateRepository->getState($metric);
         $currentValue = $this->extractValue($metrics, $metric);
+        
         $error = ($currentValue - $target) / max($target, 0.0001);
 
-        $settings = $this->prepareSettings($params, $hw, $state, $error);
+        $activeSettings = $this->prepareSettings($params, $hw, $state, $error);
         
         $result = $this->calculator->calculate(
-            $settings, $target, $currentValue, $state->lastError, $state->integral, $state->timestamp
+            $activeSettings, 
+            $target, 
+            $currentValue, 
+            $state->lastError->toFloat(), 
+            $state->integral->toFloat(), 
+            $state->timestamp
         );
 
-        $this->persistState($metric, $result, $settings);
+        $this->stateRepository->saveState($metric, $result);
 
-        return $result->output;
+        return $result->output->toFloat();
     }
 
-    private function prepareSettings(array $params, HardwareContext $hw, PidResult $state, float $error): PidSettings
+    private function prepareSettings(array $params, HardwareContext $hw, FixedPidResult $state, float $error): PidSettings
     {
         $baseKp = $params['kp'] / (1 + log10($hw->cpuCores));
         $base = new PidSettings($baseKp, $params['ki'], $params['kd'], $params['anti_windup']);
 
         return $this->tuner->tune($base, $state, $error);
-    }
-
-    private function persistState(string $metric, PidResult $res, PidSettings $set): void
-    {
-        $this->stateRepository->saveState($metric, new PidResult(
-            $res->output, $res->lastError, $res->integral, $res->timestamp, $set->kp, $set->ki, $set->kd
-        ));
     }
 
     private function extractValue(NodeMetrics $metrics, string $key): float

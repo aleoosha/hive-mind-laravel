@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Console\Commands;
 
+use Aleoosha\HiveMind\Support\FixedPoint;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 
 final class HiveDebugChartCommand extends Command
 {
     protected $signature = 'hive:debug-chart {--width=60} {--height=15}';
-    protected $description = 'Визуализация фазового портрета и переходных процессов Роя';
+    protected $description = 'Visualizing swarm phase portrait and transition processes (FixedPoint support)';
+
+    private const CANVAS_X = 40;
 
     public function handle(): int
     {
-        $width = (int) $this->option('width');
-        $height = (int) $this->option('height');
+        $width = (int)$this->option('width');
+        $height = (int)$this->option('height');
 
         $data = DB::table('hive_snapshots')
             ->orderBy('id', 'desc')
@@ -24,75 +28,78 @@ final class HiveDebugChartCommand extends Command
             ->reverse();
 
         if ($data->count() < 2) {
-            $this->error('Недостаточно данных. Запустите нагрузку на пару минут.');
-            return 1;
+            $this->error('Not enough data. Run hive:pulse and apply some load for 1-2 minutes.');
+            return self::FAILURE;
         }
 
         $this->renderTransitionProcess($data, $width, $height);
         $this->renderHysteresis($data, $height);
 
-        return 0;
+        return self::SUCCESS;
     }
 
-    private function renderTransitionProcess($data, $w, $h): void
+    private function renderTransitionProcess(Collection $data, int $w, int $h): void
     {
-        $this->info("\n--- Переходный процесс (Нагрузка [█] vs Отсечение [░]) ---");
+        $this->info("\n--- Transition Process (Load [█] vs Shedding [░]) ---");
         
-        // Сетка + место под ось Y (4 символа слева)
-        $yAxisWidth = 5;
         $grid = array_fill(0, $h, array_fill(0, $w, ' '));
         $data = $data->values();
 
         foreach ($data as $x => $point) {
-            $yHealth = (int)(($point->avg_health ?? 0) / 100 * ($h - 1));
-            $yPid = (int)(($point->shedding_rate ?? 0) / 100 * ($h - 1));
+            $health = (new FixedPoint((int)$point->avg_health, true))->toFloat();
+            $pid = (new FixedPoint((int)$point->shedding_rate, true))->toFloat();
 
-            $grid[$h - 1 - $yHealth][$x] = '█';
+            $yHealth = (int)($health / 100 * ($h - 1));
+            $yPid = (int)($pid / 100 * ($h - 1));
+
+            $grid[$h - 1 - $this->clamp($yHealth, 0, $h - 1)][$x] = '█';
             
-            // Рисуем сигнал ПИД, если место не занято нагрузкой
-            if ($grid[$h - 1 - $yPid][$x] === ' ') {
-                $grid[$h - 1 - $yPid][$x] = '░';
+            $targetY = $h - 1 - $this->clamp($yPid, 0, $h - 1);
+            if ($grid[$targetY][$x] === ' ') {
+                $grid[$targetY][$x] = '░';
             }
         }
 
-        // Отрисовка с осью Y
+        $this->drawGrid($grid, $h, $w, 'Time');
+    }
+
+    private function renderHysteresis(Collection $data, int $h): void
+    {
+        $this->info("\n--- Phase Portrait / Hysteresis (X: Load -> Y: Signal) ---");
+        
+        $grid = array_fill(0, $h, array_fill(0, self::CANVAS_X, ' '));
+
+        foreach ($data as $point) {
+            $health = (new FixedPoint((int)$point->avg_health, true))->toFloat();
+            $pid = (new FixedPoint((int)$point->shedding_rate, true))->toFloat();
+
+            $x = (int)($health / 100 * (self::CANVAS_X - 1));
+            $y = (int)($pid / 100 * ($h - 1));
+
+            $grid[$h - 1 - $this->clamp($y, 0, $h - 1)][$this->clamp($x, 0, self::CANVAS_X - 1)] = '•';
+        }
+
+        $this->drawGrid($grid, $h, self::CANVAS_X, 'Load %');
+    }
+
+    private function drawGrid(array $grid, int $h, int $w, string $xLabel): void
+    {
         foreach ($grid as $y => $row) {
             $label = match($y) {
                 0 => '100%',
-                (int)($h/2) => ' 50%',
-                $h-1 => '  0%',
+                (int)($h / 2) => ' 50%',
+                $h - 1 => '  0%',
                 default => '    '
             };
             $this->line("<fg=gray>{$label} ┨</>" . implode('', $row));
         }
 
-        // Отрисовка оси X
         $xAxis = str_repeat('━', $w);
-        $this->line(str_repeat(' ', $yAxisWidth) . "<fg=gray>┗{$xAxis}▶ Time</>");
+        $this->line("      <fg=gray>┗{$xAxis}▶ {$xLabel}</>");
     }
 
-    private function renderHysteresis($data, $h): void
+    private function clamp(int $val, int $min, int $max): int
     {
-        $this->info("\n--- Фазовый портрет / Гистерезис (X: Нагрузка -> Y: Сигнал) ---");
-        $canvasSize = 40;
-        $grid = array_fill(0, $h, array_fill(0, $canvasSize, ' '));
-
-        foreach ($data as $point) {
-            $x = (int)(($point->avg_health ?? 0) / 100 * ($canvasSize - 1));
-            $y = (int)(($point->shedding_rate ?? 0) / 100 * ($h - 1));
-            $grid[max(0, $h - 1 - $y)][max(0, $x)] = '•';
-        }
-
-        foreach ($grid as $y => $row) {
-            $label = match($y) {
-                0 => '100',
-                (int)($h/2) => ' 50',
-                $h-1 => '  0',
-                default => '   '
-            };
-            $this->line("<fg=gray>{$label} ┨</>" . implode('', $row));
-        }
-        $this->line(str_repeat(' ', 4) . "┗" . str_repeat('━', $canvasSize) . "▶ Load %");
+        return max($min, min($max, $val));
     }
-
 }

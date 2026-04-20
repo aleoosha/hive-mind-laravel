@@ -6,7 +6,8 @@ namespace Aleoosha\HiveMind\Repositories;
 
 use Aleoosha\HiveMind\Contracts\PidStateRepository;
 use Aleoosha\HiveMind\Contracts\Serializer;
-use Aleoosha\HiveMind\DTO\PidResult;
+use Aleoosha\HiveMind\DTO\FixedPidResult;
+use Aleoosha\HiveMind\Support\FixedPoint;
 use Illuminate\Support\Facades\Redis;
 use Throwable;
 
@@ -19,7 +20,7 @@ final class RedisPidStateRepository implements PidStateRepository
         private readonly Serializer $serializer
     ) {}
 
-    public function getState(string $metric): PidResult
+    public function getState(string $metric): FixedPidResult
     {
         $raw = Redis::get(self::PREFIX . $metric);
 
@@ -34,27 +35,37 @@ final class RedisPidStateRepository implements PidStateRepository
         }
     }
 
-    public function saveState(string $metric, PidResult $result): void
+    public function saveState(string $metric, FixedPidResult $result): void
     {
-        $data = $this->serializer->pack($result->toArray());
+        $data = $this->serializer->pack([
+            'output'     => $result->output->toInt(),
+            'last_error' => $result->lastError->toInt(),
+            'integral'   => $result->integral->toInt(),
+            'timestamp'  => $result->timestamp,
+            'kp'         => $result->kp->toInt(),
+            'ki'         => $result->ki->toInt(),
+            'kd'         => $result->kd->toInt(),
+        ]);
+
         Redis::setex(self::PREFIX . $metric, self::TTL, $data);
     }
 
-    private function mapToDto(array $data): PidResult
+    private function mapToDto(array $data): FixedPidResult
     {
-        return new PidResult(
-            (float)($data['output'] ?? 0.0),
-            (float)($data['last_error'] ?? 0.0),
-            (float)($data['integral'] ?? 0.0),
-            (float)($data['timestamp'] ?? microtime(true)),
-            (float)($data['kp'] ?? 0.0),
-            (float)($data['ki'] ?? 0.0),
-            (float)($data['kd'] ?? 0.0)
+        return new FixedPidResult(
+            output:    FixedPoint::raw((int)($data['output'] ?? 0)),
+            lastError: FixedPoint::raw((int)($data['last_error'] ?? 0)),
+            integral:  FixedPoint::raw((int)($data['integral'] ?? 0)),
+            timestamp: (float)($data['timestamp'] ?? microtime(true)),
+            kp:        FixedPoint::raw((int)($data['kp'] ?? 0)),
+            ki:        FixedPoint::raw((int)($data['ki'] ?? 0)),
+            kd:        FixedPoint::raw((int)($data['kd'] ?? 0))
         );
     }
 
-    private function emptyResult(): PidResult
+    private function emptyResult(): FixedPidResult
     {
-        return new PidResult(0.0, 0.0, 0.0, microtime(true), 0.0, 0.0, 0.0);
+        $zero = FixedPoint::raw(0);
+        return new FixedPidResult($zero, $zero, $zero, microtime(true), $zero, $zero, $zero);
     }
 }

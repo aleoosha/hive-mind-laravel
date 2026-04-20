@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\DTO;
 
+use Aleoosha\HiveMind\Support\FixedPoint;
+
 /**
  * Результат расчета и новое состояние регулятора.
  */
-final  class PidResult
+final class FixedPidResult
 {
     public function __construct(
-        public readonly float $output,
-        public readonly float $integral,
-        public readonly float $lastError,
+        public readonly FixedPoint $output,
+        public readonly FixedPoint $lastError,
+        public readonly FixedPoint $integral,
         public readonly float $timestamp,
-        public float $kp,
-        public float $ki,
-        public float $kd
+        public readonly FixedPoint $kp,
+        public readonly FixedPoint $ki,
+        public readonly FixedPoint $kd
     ) {}
 
     public function toArray(): array

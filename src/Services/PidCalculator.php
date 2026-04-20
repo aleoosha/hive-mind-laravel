@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Services;
 
+use Aleoosha\HiveMind\DTO\FixedPidResult;
 use Aleoosha\HiveMind\DTO\PidSettings;
-use Aleoosha\HiveMind\DTO\PidResult;
+use Aleoosha\HiveMind\Support\FixedPoint;
 
 final class PidCalculator
 {
@@ -16,41 +17,76 @@ final class PidCalculator
         float $lastError,
         float $integral,
         ?float $lastTime
-    ): PidResult {
+    ): FixedPidResult {
         $now = microtime(true);
         $dt = $lastTime ? ($now - $lastTime) : 0.0;
-        $error = ($current - $target) / max($target, 0.0001);
 
-        $newIntegral = $this->calculateIntegral($integral, $error, $dt, $settings->antiWindup);
-        
-        $output = $this->computeOutput($settings, $error, $lastError, $newIntegral, $dt);
+        $fTarget = FixedPoint::fromFloat($target);
+        $fCurrent = FixedPoint::fromFloat($current);
+        $fLastError = FixedPoint::fromFloat($lastError);
+        $fIntegral = FixedPoint::fromFloat($integral);
 
-        return new PidResult(
-            output: max(0.0, min(100.0, $output)),
+        $fKp = FixedPoint::fromFloat($settings->kp);
+        $fKi = FixedPoint::fromFloat($settings->ki);
+        $fKd = FixedPoint::fromFloat($settings->kd);
+
+        $error = $fCurrent->subtract($fTarget)->divide($fTarget);
+
+        $newIntegral = $this->calculateIntegral($fIntegral, $error, $dt, $settings->antiWindup);
+
+        $output = $this->computeOutput($fKp, $fKi, $fKd, $error, $fLastError, $newIntegral, $dt);
+
+        return new FixedPidResult(
+            output: $this->clamp($output, 0, 100),
             lastError: $error,
             integral: $newIntegral,
             timestamp: $now,
-            kp: $settings->kp,
-            ki: $settings->ki,
-            kd: $settings->kd
+            kp: $fKp,
+            ki: $fKi,
+            kd: $fKd
         );
     }
 
-    private function calculateIntegral(float $integral, float $error, float $dt, float $limit): float
+    private function calculateIntegral(FixedPoint $integral, FixedPoint $error, float $dt, float $limit): FixedPoint
     {
         if ($dt <= 0) {
             return $integral;
         }
 
-        return max(0.0, min($limit, $integral + ($error * $dt)));
+        $fDt = FixedPoint::fromFloat($dt);
+        $fLimit = FixedPoint::fromFloat($limit);
+        
+        $newIntegral = $integral->add($error->multiply($fDt));
+
+        return $this->clamp($newIntegral, 0, $limit);
     }
 
-    private function computeOutput(PidSettings $s, float $err, float $lErr, float $integ, float $dt): float
-    {
-        $p = $s->kp * $err;
-        $i = $s->ki * $integ;
-        $d = ($dt > 0) ? ($s->kd * ($err - $lErr) / $dt) : 0.0;
+    private function computeOutput(
+        FixedPoint $kp, 
+        FixedPoint $ki, 
+        FixedPoint $kd, 
+        FixedPoint $err, 
+        FixedPoint $lErr, 
+        FixedPoint $integ, 
+        float $dt
+    ): FixedPoint {
+        $pTerm = $kp->multiply($err);
+        $iTerm = $ki->multiply($integ);
+        
+        $dTerm = FixedPoint::raw(0);
+        if ($dt > 0) {
+            $fDt = FixedPoint::fromFloat($dt);
+            $dTerm = $err->subtract($lErr)->divide($fDt)->multiply($kd);
+        }
 
-        return ($p + $i + $d) * 100;
+        return $pTerm->add($iTerm)->add($dTerm)->multiply(FixedPoint::fromFloat(100.0));
+    }
+
+    private function clamp(FixedPoint $val, float $min, float $max): FixedPoint
+    {
+        $f = $val->toFloat();
+        if ($f < $min) return FixedPoint::fromFloat($min);
+        if ($f > $max) return FixedPoint::fromFloat($max);
+        return $val;
     }
 }

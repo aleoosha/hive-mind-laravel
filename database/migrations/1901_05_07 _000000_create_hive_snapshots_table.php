@@ -7,22 +7,29 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
+    
+    /**
+     * Run the migrations.
+     * 
+     * All floating point metrics are stored as integers (value * 1000)
+     * to prevent precision loss and optimize database indexing.
+     */
     public function up(): void
     {
         Schema::create('hive_snapshots', function (Blueprint $table) {
             $table->id();
 
-            // Swarm Health & PID
-            $table->float('avg_health');
-            $table->float('shedding_rate')->default(0);
+            // Swarm Health & PID (Integer milli-points: 100% = 100000)
+            $table->bigInteger('avg_health');
+            $table->bigInteger('shedding_rate')->default(0);
 
-            // Resource Metrics
-            $table->float('avg_cpu');
-            $table->float('max_cpu');
-            $table->float('avg_db_latency');
-            $table->float('max_db_latency');
-            $table->float('avg_api_latency');
-            $table->float('max_api_latency');
+            // Resource Metrics (Integer milli-points: e.g., 50.5% = 50500)
+            $table->bigInteger('avg_cpu');
+            $table->bigInteger('max_cpu');
+            $table->bigInteger('avg_db_latency');
+            $table->bigInteger('max_db_latency');
+            $table->bigInteger('avg_api_latency');
+            $table->bigInteger('max_api_latency');
 
             // Capacity & Scale
             $table->integer('sample_count');
@@ -31,7 +38,7 @@ return new class extends Migration {
             // System Context
             $table->json('thresholds_snapshot');
             $table->integer('cpu_cores')->nullable();
-            $table->float('ram_total_gb')->nullable();
+            $table->bigInteger('ram_total_gb')->nullable()->comment('Stored as MB * 1000');
             $table->string('server_os')->nullable();
             $table->string('php_version')->nullable();
 
@@ -40,6 +47,9 @@ return new class extends Migration {
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('hive_snapshots');

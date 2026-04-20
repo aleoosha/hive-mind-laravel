@@ -4,22 +4,24 @@ declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Services;
 
-use Aleoosha\HiveMind\DTO\PidResult;
+use Aleoosha\HiveMind\DTO\FixedPidResult;
 use Aleoosha\HiveMind\DTO\PidSettings;
 
 final class PidTuner
 {
-    public function tune(PidSettings $base, PidResult $lastResult, float $currentError): PidSettings
+    public function tune(PidSettings $base, FixedPidResult $lastResult, float $currentError): PidSettings
     {
-        $kp = $lastResult->kp > 0 ? $lastResult->kp : $base->kp;
-        $ki = $lastResult->ki > 0 ? $lastResult->ki : $base->ki;
+        $kp = $lastResult->kp->toInt() > 0 ? $lastResult->kp->toFloat() : $base->kp;
+        $ki = $lastResult->ki->toInt() > 0 ? $lastResult->ki->toFloat() : $base->ki;
 
-        $kp = $this->detectResonance($currentError, $lastResult->lastError, $kp);
-        $ki = $this->detectStagnation($currentError, $lastResult->lastError, $ki);
+        $lastError = $lastResult->lastError->toFloat();
+        
+        $kp = $this->detectResonance($currentError, $lastError, $kp);
+        $ki = $this->detectStagnation($currentError, $lastError, $ki);
 
         return new PidSettings(
-            kp: max($base->kp * 0.1, min($base->kp * 2.0, $kp)),
-            ki: max(0.0, min(1.0, $ki)),
+            kp: round(max($base->kp * 0.1, min($base->kp * 2.0, $kp)), 4),
+            ki: round(max(0.0, min(1.0, $ki)), 4),
             kd: $base->kd,
             antiWindup: $base->antiWindup
         );

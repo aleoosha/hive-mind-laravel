@@ -6,19 +6,15 @@ namespace Aleoosha\HiveMind\Tests\Feature;
 
 use Aleoosha\HiveMind\DTO\SwarmSnapshot;
 use Aleoosha\HiveMind\DTO\HardwareContext;
+use Aleoosha\HiveMind\Support\FixedPoint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 test('it correctly stores full snapshot context in database', function () {
-    $hardware = new HardwareContext(
-        cpuCores: 4, 
-        ramTotalGb: 8.0, 
-        os: 'Linux', 
-        phpVersion: '8.1'
-    );
-
+    $hardware = new HardwareContext(4, 8.0, 'Linux', '8.1');
+    
     $snapshot = new SwarmSnapshot(
         avgHealth: 50.0,
         avgCpu: 40.0,
@@ -33,30 +29,17 @@ test('it correctly stores full snapshot context in database', function () {
         nodeCount: 1
     );
 
-    DB::table('hive_snapshots')->insert([
-        'avg_health'     => $snapshot->avgHealth,
-        'shedding_rate'  => $snapshot->avgShedding,
-        'avg_cpu'        => $snapshot->avgCpu,
-        'max_cpu'        => $snapshot->maxCpu,
-        'avg_db_latency' => $snapshot->avgDbLatency,
-        'max_db_latency' => $snapshot->maxDbLatency,
-        'avg_api_latency'=> $snapshot->avgApiLatency,
-        'max_api_latency'=> $snapshot->maxApiLatency,
-        'thresholds_snapshot' => $snapshot->thresholdsSnapshot,
-        'sample_count'   => $snapshot->sampleCount,
-        'node_count'     => $snapshot->nodeCount,
-        'cpu_cores'      => $hardware->cpuCores,
-        'ram_total_gb'      => $hardware->ramTotalGb,
-        'server_os'      => $hardware->os,
-        'php_version'    => $hardware->phpVersion,
-        'created_at'     => now(),
-    ]);
+    DB::table('hive_snapshots')->insert(array_merge(
+        $snapshot->toArray(),
+        $hardware->toArray(),
+        ['created_at' => now()]
+    ));
 
     $record = DB::table('hive_snapshots')->first();
 
     expect($record)->not->toBeNull()
-        ->and((float)$record->avg_health)->toBe(50.0)
-        ->and((int)$record->cpu_cores)->toBe(4)
-        ->and((float)$record->shedding_rate)->toBe(25.0);
+        ->and(FixedPoint::raw((int)$record->avg_health)->toFloat())->toBe(50.0)
+        ->and(FixedPoint::raw((int)$record->shedding_rate)->toFloat())->toBe(25.0)
+        ->and((int)$record->cpu_cores)->toBe(4);
 });
 
