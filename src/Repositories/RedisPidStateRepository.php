@@ -4,68 +4,62 @@ declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Repositories;
 
-use Aleoosha\HiveMind\Contracts\PidStateRepository;
-use Aleoosha\HiveMind\Contracts\Serializer;
-use Aleoosha\HiveMind\DTO\FixedPidResult;
-use Aleoosha\HiveMind\Support\FixedPoint;
+use Aleoosha\TauPid\Contracts\DTO\FixedPidResult;
+use Aleoosha\TauPid\Contracts\DTO\PidSettings;
+use Aleoosha\TauPid\Contracts\PidStateRepositoryInterface;
+use Aleoosha\Telemetry\Contracts\SerializerInterface;
 use Illuminate\Support\Facades\Redis;
 use Throwable;
 
-final class RedisPidStateRepository implements PidStateRepository
+/**
+ * Redis adapter for persisting PID calculation states and adaptive settings.
+ */
+final class RedisPidStateRepository implements PidStateRepositoryInterface
 {
     private const PREFIX = 'hive_pid:';
+
     private const TTL = 86400;
 
     public function __construct(
-        private readonly Serializer $serializer
+        private readonly SerializerInterface $serializer
     ) {}
 
-    public function getState(string $metric): FixedPidResult
+    public function getState(string $key): ?FixedPidResult
     {
-        $raw = Redis::get(self::PREFIX . $metric);
-
-        if (!$raw) {
-            return $this->emptyResult();
+        $raw = Redis::get(self::PREFIX.$key);
+        if (! $raw) {
+            return null;
         }
 
         try {
-            return $this->mapToDto($this->serializer->unpack($raw));
+            return $this->serializer->unpack($raw);
         } catch (Throwable) {
-            return $this->emptyResult();
+            return null;
         }
     }
 
-    public function saveState(string $metric, FixedPidResult $result): void
+    public function saveState(string $key, FixedPidResult $state): void
     {
-        $data = $this->serializer->pack([
-            'output'     => $result->output->toInt(),
-            'last_error' => $result->lastError->toInt(),
-            'integral'   => $result->integral->toInt(),
-            'timestamp'  => $result->timestamp,
-            'kp'         => $result->kp->toInt(),
-            'ki'         => $result->ki->toInt(),
-            'kd'         => $result->kd->toInt(),
-        ]);
-
-        Redis::setex(self::PREFIX . $metric, self::TTL, $data);
-    }
-
-    private function mapToDto(array $data): FixedPidResult
-    {
-        return new FixedPidResult(
-            output:    FixedPoint::raw((int)($data['output'] ?? 0)),
-            lastError: FixedPoint::raw((int)($data['last_error'] ?? 0)),
-            integral:  FixedPoint::raw((int)($data['integral'] ?? 0)),
-            timestamp: (float)($data['timestamp'] ?? microtime(true)),
-            kp:        FixedPoint::raw((int)($data['kp'] ?? 0)),
-            ki:        FixedPoint::raw((int)($data['ki'] ?? 0)),
-            kd:        FixedPoint::raw((int)($data['kd'] ?? 0))
+        Redis::setex(
+            self::PREFIX.$key,
+            self::TTL,
+            $this->serializer->pack($state)
         );
     }
 
-    private function emptyResult(): FixedPidResult
+    public function saveSettings(string $key, PidSettings $settings): void
     {
-        $zero = FixedPoint::raw(0);
-        return new FixedPidResult($zero, $zero, $zero, microtime(true), $zero, $zero, $zero);
+        Redis::setex(
+            self::PREFIX.'settings:'.$key,
+            self::TTL,
+            $this->serializer->pack($settings)
+        );
+    }
+
+    public function getSettings(string $key): ?PidSettings
+    {
+        $raw = Redis::get(self::PREFIX.'settings:'.$key);
+
+        return $raw ? $this->serializer->unpack($raw) : null;
     }
 }

@@ -1,76 +1,82 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Tests\Feature;
 
-use Aleoosha\HiveMind\Contracts\PidStateRepository;
-use Aleoosha\HiveMind\DTO\FixedPidResult;
-use Aleoosha\HiveMind\DTO\HardwareContext;
-use Aleoosha\HiveMind\DTO\NodeMetrics;
+use Aleoosha\DssCore\DecisionEngine;
+use Aleoosha\DssCore\DTO\DecisionResult;
+use Aleoosha\Support\Types\FixedPoint;
+use Aleoosha\TauPid\Contracts\PidStateRepositoryInterface;
+use Aleoosha\TauPid\Contracts\DTO\FixedPidResult;
+use Aleoosha\Telemetry\Contracts\MetricsCollectorInterface;
+use Aleoosha\Telemetry\Contracts\DTO\NodeMetrics;
 use Aleoosha\HiveMind\Exceptions\HiveOvercapacityException;
-use Aleoosha\HiveMind\Services\MetricsCollector;
-use Aleoosha\HiveMind\Services\SwarmIntelligence;
-use Aleoosha\HiveMind\Support\FixedPoint;
 use Aleoosha\HiveMind\Traits\AsHiveMember;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
 
+/**
+ * Dummy model for testing Trait protection.
+ */
 class TestOrder extends Model
 {
     use AsHiveMember;
-
     protected $fillable = ['name'];
 }
 
 test('it prevents model saving when hive is stressed via PID', function () {
+    // 1. Database Setup
     Schema::create('test_orders', function (Blueprint $table) {
         $table->id();
         $table->string('name');
         $table->timestamps();
     });
 
-    $pidRepo = Mockery::mock(PidStateRepository::class);
-    $zero = FixedPoint::raw(0);
+    $zero = new FixedPoint(0);
+    $now = (int)(microtime(true) * 1000);
 
+    // 2. Mock PID Repository (using Interface)
+    $pidRepo = Mockery::mock(PidStateRepositoryInterface::class);
     $pidRepo->shouldReceive('getState')->andReturn(new FixedPidResult(
         output: $zero,
         lastError: $zero,
         integral: $zero,
-        timestamp: microtime(true),
-        kp: FixedPoint::fromFloat(0.6),
-        ki: FixedPoint::fromFloat(0.1),
-        kd: FixedPoint::fromFloat(0.4)
+        timestampMs: $now,
+        kp: $zero, ki: $zero, kd: $zero
     ));
-    $pidRepo->shouldReceive('saveState');
-    $this->app->instance(PidStateRepository::class, $pidRepo);
+    // Important: bind to Interface, not class
+    $this->app->instance(PidStateRepositoryInterface::class, $pidRepo);
 
-    $collector = Mockery::mock(MetricsCollector::class);
-    $collector->shouldReceive('getMetrics')->andReturn(new NodeMetrics(
-        cpu: 95.0,
-        memory: 50.0,
-        dbLatency: 0.0,
-        apiLatency: 0.0,
-        timestamp: (int) microtime(true),
+    // 3. Mock Metrics Collector (using Interface)
+    $collector = Mockery::mock(MetricsCollectorInterface::class);
+    $collector->shouldReceive('collect')->andReturn(new NodeMetrics(
+        cpu: FixedPoint::fromFloat(95.0),
+        memory: FixedPoint::fromFloat(50.0),
+        dbLatency: $zero,
+        apiLatency: $zero,
+        timestampMs: $now,
         nodeId: 'test-node'
     ));
+    $this->app->instance(MetricsCollectorInterface::class, $collector);
 
-    $collector->shouldReceive('getHardwareContext')->andReturn(
-        new HardwareContext(4, 8.0, 'Linux', '8.2')
-    );
-    $this->app->instance(MetricsCollector::class, $collector);
+    // 4. Mock Decision Engine (The Brain)
+    $engine = Mockery::mock(DecisionEngine::class);
+    $engine->shouldReceive('evaluate')->andReturn(new DecisionResult(
+        systemLoad: FixedPoint::fromFloat(0.95),
+        sheddingRate: FixedPoint::fromFloat(1.0), // 100% rejection chance
+        alerts: ['cpu_percent'],
+        timestampMs: $now
+    ));
+    $this->app->instance(DecisionEngine::class, $engine);
 
-    $intelligence = Mockery::mock(SwarmIntelligence::class);
-    $intelligence->shouldReceive('computeSheddingRate')->andReturn(100.0);
-    $this->app->instance(SwarmIntelligence::class, $intelligence);
-
+    // 5. Execution & Assertion
     try {
+        // This should trigger the static::saving() hook in AsHiveMember trait
         TestOrder::create(['name' => 'iPhone 15']);
     } catch (HiveOvercapacityException $e) {
-        expect($e->getMessage())->toContain('Swarm PID protection active (100%)');
-
+        // We expect 100.0 from FixedPoint::fromFloat(1.0)->toFloat() * 100
+        expect($e->getMessage())->toContain('Swarm DSS protection active (Shedding: 100%)');
         return;
     }
 

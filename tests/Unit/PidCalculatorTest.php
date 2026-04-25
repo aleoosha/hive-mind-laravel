@@ -1,29 +1,43 @@
-<?php
+<?php declare(strict_types=1);
 
-declare(strict_types=1);
+namespace Aleoosha\HiveMind\Tests\Unit;
 
-use Aleoosha\HiveMind\Services\PidCalculator;
-use Aleoosha\HiveMind\DTO\PidSettings;
+use Aleoosha\Support\Types\FixedPoint;
+use Aleoosha\TauPid\Contracts\DTO\PidSettings;
+use Aleoosha\TauPid\Kernel\Services\PidCalculator;
 
 test('pid calculator reacts to sudden spikes (D-term)', function () {
-    $calculator = new \Aleoosha\HiveMind\Services\PidCalculator();
-    $settings = new \Aleoosha\HiveMind\DTO\PidSettings(
-        kp: 0.0, ki: 0.0, kd: 0.5, antiWindup: 20.0
-    );
-
-    $now = microtime(true);
+    // 1. Setup the calculator from the Kernel library
+    $calculator = new PidCalculator();
     
-    $res1 = $calculator->calculate($settings, 100.0, 110.0, 0.0, 0.0, null);
-
-    $res2 = $calculator->calculate(
-        $settings, 
-        100.0, 
-        150.0, 
-        $res1->lastError->toFloat(), 
-        $res1->integral->toFloat(), 
-        $now - 0.1
+    // 2. Setup settings with ONLY Derivative gain (D-term)
+    $settings = new PidSettings(
+        kp: new FixedPoint(0),
+        ki: new FixedPoint(0),
+        kd: FixedPoint::fromFloat(0.5),
+        antiWindup: FixedPoint::fromInt(20)
     );
 
-    expect($res2->output->toFloat())->toBeGreaterThan(0)
-        ->and($res2->output->toFloat())->toBe(100.0);
+    $now = (int)(microtime(true) * 1000);
+
+    // Initial state: system is at setpoint (error 0)
+    $res1 = $calculator->calculate(
+        error: new FixedPoint(0), 
+        deltaTimeMs: 0, 
+        previousState: null, 
+        settings: $settings
+    );
+
+    // Sudden spike: error becomes +50% (500 in FixedPoint) after 100ms
+    $error = FixedPoint::fromFloat(0.5);
+    $res2 = $calculator->calculate(
+        error: $error, 
+        deltaTimeMs: 100, 
+        previousState: $res1, 
+        settings: $settings
+    );
+
+    // 3. Assertions
+    // Output should be maxed out (1.0) because of the sudden jump
+    expect($res2->output->toFloat())->toBe(1.0); 
 });

@@ -2,30 +2,37 @@
 
 declare(strict_types=1);
 
-use Aleoosha\HiveMind\Services\MetricsCollector;
 use Aleoosha\HiveMind\Traits\AsHiveMember;
+use Aleoosha\Support\Types\FixedPoint;
+use Aleoosha\Telemetry\Contracts\MetricsCollectorInterface;
 
 test('hiveExternalCall records execution time correctly', function () {
-    $collector = app(MetricsCollector::class);
-    
-    $member = new class { 
-        use AsHiveMember; 
-        
-        public function callExternal(callable $callback): mixed 
+    /** @var MetricsCollectorInterface $collector */
+    $collector = app(MetricsCollectorInterface::class);
+
+    // Create an anonymous class to use the trait
+    $member = new class
+    {
+        use AsHiveMember;
+
+        public function callExternal(callable $callback): mixed
         {
             return $this->hiveExternalCall($callback);
         }
     };
 
-    // Выполняем имитацию долгого запроса (50мс)
-    $member->callExternal(function() {
-        usleep(50000); 
+    // Simulate a long API request (50ms)
+    $member->callExternal(function () {
+        usleep(50000);
+
         return 'success';
     });
 
-    $metrics = $collector->getMetrics();
+    // Get fresh metrics
+    $metrics = $collector->collect();
 
-    // Проверяем, что замер зафиксирован (с учетом погрешности системы)
-    expect($metrics->apiLatency)->toBeGreaterThanOrEqual(50)
-        ->and($metrics->apiLatency)->toBeLessThan(100);
+    // Check apiLatency via toFloat() or comparing FixedPoint values
+    // In new architecture, it should be >= 50.0 ms
+    expect($metrics->apiLatency->toFloat())->toBeGreaterThanOrEqual(50.0)
+        ->and($metrics->apiLatency->toFloat())->toBeLessThan(100.0);
 });

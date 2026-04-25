@@ -1,20 +1,27 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Serializers;
 
-use Aleoosha\HiveMind\Contracts\Serializer;
+use Aleoosha\Telemetry\Contracts\SerializerInterface;
 use MessagePack\MessagePack;
 
-class MsgPackSerializer implements Serializer
+/**
+ * High-performance MessagePack implementation of the telemetry serializer.
+ */
+class MsgPackSerializer implements SerializerInterface
 {
-    public function pack(array $data): string 
-    { 
-        return MessagePack::pack($data); 
+    /**
+     * Packs data into a binary MessagePack string.
+     */
+    public function pack(mixed $data): string
+    {
+        return MessagePack::pack($data);
     }
 
-    public function unpack(string $data): array 
+    /**
+     * Unpacks a binary MessagePack string back into its original structure.
+     */
+    public function unpack(string $data): mixed
     {
         return MessagePack::unpack($data);
     }

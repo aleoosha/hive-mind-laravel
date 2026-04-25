@@ -4,8 +4,213 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f03a80753619bbd40c87511696812d41",
+    "content-hash": "96a8cf0bf602476b32b67d5190958188",
     "packages": [
+        {
+            "name": "aleoosha/dss-core",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aleoosha/dss-core.git",
+                "reference": "e0c24fa690d2b3003bd194e5ecc79a7cf2353739"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aleoosha/dss-core/zipball/e0c24fa690d2b3003bd194e5ecc79a7cf2353739",
+                "reference": "e0c24fa690d2b3003bd194e5ecc79a7cf2353739",
+                "shasum": ""
+            },
+            "require": {
+                "aleoosha/support-types": "dev-main",
+                "aleoosha/tau-pid-contracts": "dev-main",
+                "aleoosha/telemetry-contracts": "dev-main",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.6",
+                "pestphp/pest": "^2.0"
+            },
+            "default-branch": true,
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Aleoosha\\DssCore\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Decision Support System core for system resilience management",
+            "support": {
+                "source": "https://github.com/aleoosha/dss-core/tree/main",
+                "issues": "https://github.com/aleoosha/dss-core/issues"
+            },
+            "time": "2026-04-25T07:59:16+00:00"
+        },
+        {
+            "name": "aleoosha/support-types",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aleoosha/support-types.git",
+                "reference": "6da78576fae8cbfa81cce2fc87e401f2b292fc82"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aleoosha/support-types/zipball/6da78576fae8cbfa81cce2fc87e401f2b292fc82",
+                "reference": "6da78576fae8cbfa81cce2fc87e401f2b292fc82",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "pestphp/pest": "^2.0"
+            },
+            "default-branch": true,
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Aleoosha\\Support\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Aleoosha\\Support\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Aleoosha",
+                    "email": "emoladushki@gmail.com"
+                }
+            ],
+            "description": "Fundamental types and value objects for Aleoosha ecosystem, including FixedPoint math.",
+            "support": {
+                "source": "https://github.com/aleoosha/support-types/tree/main",
+                "issues": "https://github.com/aleoosha/support-types/issues"
+            },
+            "time": "2026-04-25T05:25:27+00:00"
+        },
+        {
+            "name": "aleoosha/tau-pid-contracts",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aleoosha/tau-pid-contracts.git",
+                "reference": "bf06c373b68e341cb17f6850aaa0dfa7f537d954"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aleoosha/tau-pid-contracts/zipball/bf06c373b68e341cb17f6850aaa0dfa7f537d954",
+                "reference": "bf06c373b68e341cb17f6850aaa0dfa7f537d954",
+                "shasum": ""
+            },
+            "require": {
+                "aleoosha/support-types": "dev-main",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "pestphp/pest": "^2.0"
+            },
+            "default-branch": true,
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Aleoosha\\TauPid\\Contracts\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Contracts and DTOs for PID control systems",
+            "support": {
+                "source": "https://github.com/aleoosha/tau-pid-contracts/tree/main",
+                "issues": "https://github.com/aleoosha/tau-pid-contracts/issues"
+            },
+            "time": "2026-04-25T07:28:07+00:00"
+        },
+        {
+            "name": "aleoosha/tau-pid-kernel",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aleoosha/tau-pid-kernel.git",
+                "reference": "046d07a836e6d4d73d74ee31b7b08b5c709b5b0f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aleoosha/tau-pid-kernel/zipball/046d07a836e6d4d73d74ee31b7b08b5c709b5b0f",
+                "reference": "046d07a836e6d4d73d74ee31b7b08b5c709b5b0f",
+                "shasum": ""
+            },
+            "require": {
+                "aleoosha/support-types": "dev-main",
+                "aleoosha/tau-pid-contracts": "dev-main",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.6",
+                "pestphp/pest": "^2.0"
+            },
+            "default-branch": true,
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Aleoosha\\TauPid\\Kernel\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Fixed-point PID calculation and adaptive tuning kernel",
+            "support": {
+                "source": "https://github.com/aleoosha/tau-pid-kernel/tree/main",
+                "issues": "https://github.com/aleoosha/tau-pid-kernel/issues"
+            },
+            "time": "2026-04-25T08:46:40+00:00"
+        },
+        {
+            "name": "aleoosha/telemetry-contracts",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aleoosha/telemetry-contracts.git",
+                "reference": "2a0942f5547ddf87061c94f749be506203fc948b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aleoosha/telemetry-contracts/zipball/2a0942f5547ddf87061c94f749be506203fc948b",
+                "reference": "2a0942f5547ddf87061c94f749be506203fc948b",
+                "shasum": ""
+            },
+            "require": {
+                "aleoosha/support-types": "dev-main",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "pestphp/pest": "^2.0"
+            },
+            "default-branch": true,
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Aleoosha\\Telemetry\\Contracts\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Contracts and DTOs for system telemetry and state management",
+            "support": {
+                "source": "https://github.com/aleoosha/telemetry-contracts/tree/main",
+                "issues": "https://github.com/aleoosha/telemetry-contracts/issues"
+            },
+            "time": "2026-04-25T08:05:57+00:00"
+        },
         {
             "name": "brick/math",
             "version": "0.14.8",
@@ -9788,7 +9993,13 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "aleoosha/dss-core": 20,
+        "aleoosha/support-types": 20,
+        "aleoosha/tau-pid-contracts": 20,
+        "aleoosha/tau-pid-kernel": 20,
+        "aleoosha/telemetry-contracts": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

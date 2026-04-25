@@ -28,7 +28,12 @@
     "require": {
         "php": "^8.1",
         "illuminate/support": "^10.0|^11.0",
-        "rybakit/msgpack": "^0.9.2"
+        "rybakit/msgpack": "^0.9.2",
+        "aleoosha/support-types": "dev-main",
+        "aleoosha/tau-pid-contracts": "dev-main",
+        "aleoosha/telemetry-contracts": "dev-main",
+        "aleoosha/tau-pid-kernel": "dev-main",
+        "aleoosha/dss-core": "dev-main"
     },
     "scripts": {
         "test": "vendor/bin/phpunit"
@@ -40,6 +45,13 @@
         "orchestra/testbench": "^9.0",
         "laravel/pint": "^1.29"
     },
+    "repositories": [
+        { "type": "vcs", "url": "https://github.com/aleoosha/support-types" },
+        { "type": "vcs", "url": "https://github.com/aleoosha/tau-pid-contracts" },
+        { "type": "vcs", "url": "https://github.com/aleoosha/telemetry-contracts" },
+        { "type": "vcs", "url": "https://github.com/aleoosha/tau-pid-kernel" },
+        { "type": "vcs", "url": "https://github.com/aleoosha/dss-core" }
+    ],
     "config": {
         "allow-plugins": {
             "pestphp/pest-plugin": true

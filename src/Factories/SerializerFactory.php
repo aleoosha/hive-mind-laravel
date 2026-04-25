@@ -1,27 +1,28 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Factories;
 
-use Aleoosha\HiveMind\Contracts\Serializer;
+use Aleoosha\Telemetry\Contracts\SerializerInterface;
 use Aleoosha\HiveMind\Serializers\JsonSerializer;
 use Aleoosha\HiveMind\Serializers\MsgPackSerializer;
 use Illuminate\Contracts\Container\Container;
 
+/**
+ * Factory for creating telemetry serializers based on configuration.
+ */
 final class SerializerFactory
 {
     /**
-     * Создает экземпляр сериализатора на основе конфигурации.
+     * Create a serializer instance based on the 'hive-mind.broadcast.format' setting.
      */
-    public function make(Container $app): Serializer
+    public function make(Container $app): SerializerInterface
     {
         $format = config('hive-mind.broadcast.format', 'json');
 
         return match ($format) {
             'msgpack' => $app->make(MsgPackSerializer::class),
-            'json' => $app->make(JsonSerializer::class),
-            default => $app->make(JsonSerializer::class),
+            'json'    => $app->make(JsonSerializer::class),
+            default   => $app->make(JsonSerializer::class),
         };
     }
 }

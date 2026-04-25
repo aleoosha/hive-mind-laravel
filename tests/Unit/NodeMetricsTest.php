@@ -1,48 +1,43 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Tests\Unit;
 
-use Aleoosha\HiveMind\DTO\NodeMetrics;
+use Aleoosha\Telemetry\Contracts\DTO\NodeMetrics;
+use Aleoosha\Support\Types\FixedPoint;
 
-test('it stores metrics correctly', function () {
-    $timestamp = time();
+test('it stores metrics correctly using FixedPoint', function () {
+    $timestamp = (int)(microtime(true) * 1000);
+    
+    // In the new architecture, we use FixedPoint objects for all numeric values
     $metrics = new NodeMetrics(
-        cpu: 45.5,
-        memory: 70.2,
-        dbLatency: 12.5,     // Тот самый аргумент #3
-        apiLatency: 150.0,
-        timestamp: $timestamp,
+        cpu: FixedPoint::fromFloat(45.5),
+        memory: FixedPoint::fromFloat(70.2),
+        dbLatency: FixedPoint::fromFloat(12.5),
+        apiLatency: FixedPoint::fromFloat(150.0),
+        timestampMs: $timestamp,
         nodeId: 'test-node-1'
     );
 
-    expect($metrics->cpu)->toBe(45.5)
-        ->and($metrics->memory)->toBe(70.2)
-        ->and($metrics->dbLatency)->toBe(12.5)
-        ->and($metrics->apiLatency)->toBe(150.0)
-        ->and($metrics->timestamp)->toBe($timestamp)
+    expect($metrics->cpu->toFloat())->toBe(45.5)
+        ->and($metrics->memory->toFloat())->toBe(70.2)
+        ->and($metrics->dbLatency->toFloat())->toBe(12.5)
+        ->and($metrics->apiLatency->toFloat())->toBe(150.0)
+        ->and($metrics->timestampMs)->toBe($timestamp)
         ->and($metrics->nodeId)->toBe('test-node-1');
 });
 
-test('it can convert to array', function () {
+test('it ensures internal integrity of FixedPoint values', function () {
     $metrics = new NodeMetrics(
-        cpu: 10.0,
-        memory: 20.0,
-        dbLatency: 5.0,
-        apiLatency: 0.0,
-        timestamp: 123456789,
+        cpu: FixedPoint::fromInt(10), // Should be 10000 internally
+        memory: FixedPoint::fromInt(20),
+        dbLatency: FixedPoint::fromInt(5),
+        apiLatency: new FixedPoint(0),
+        timestampMs: 123456789,
         nodeId: 'node-a'
     );
 
-    $array = $metrics->toArray();
-
-    expect($array)->toBe([
-        'cpu' => 10.0,
-        'memory' => 20.0,
-        'db_latency' => 5.0,
-        'api_latency' => 0.0,
-        'timestamp' => 123456789,
-        'node_id' => 'node-a',
-    ]);
+    // We verify that the scale (1000) is preserved
+    expect($metrics->cpu->value)->toBe(10000)
+        ->and($metrics->dbLatency->value)->toBe(5000)
+        ->and($metrics->nodeId)->toBe('node-a');
 });

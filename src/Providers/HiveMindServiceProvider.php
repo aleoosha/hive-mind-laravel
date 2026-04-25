@@ -1,97 +1,108 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Aleoosha\HiveMind\Contracts\Serializer;
-use Aleoosha\HiveMind\Contracts\StateRepository;
-use Aleoosha\HiveMind\Contracts\PidStateRepository;
-use Aleoosha\HiveMind\Repositories\RedisStateRepository;
+use Aleoosha\DssCore\DecisionEngine;
+use Aleoosha\Support\Types\FixedPoint;
+use Aleoosha\TauPid\Contracts\PidCalculatorInterface;
+use Aleoosha\TauPid\Contracts\PidStateRepositoryInterface;
+use Aleoosha\TauPid\Contracts\PidTunerInterface;
+use Aleoosha\TauPid\Contracts\DTO\MetricProfile;
+use Aleoosha\TauPid\Contracts\DTO\PidSettings;
+use Aleoosha\TauPid\Kernel\Services\PidCalculator;
+use Aleoosha\TauPid\Kernel\Services\PidTuner;
+use Aleoosha\Telemetry\Contracts\MetricsCollectorInterface;
+use Aleoosha\Telemetry\Contracts\SerializerInterface;
+use Aleoosha\Telemetry\Contracts\StateRepositoryInterface;
 use Aleoosha\HiveMind\Repositories\RedisPidStateRepository;
-use Aleoosha\HiveMind\Factories\SerializerFactory;
+use Aleoosha\HiveMind\Repositories\RedisStateRepository;
 use Aleoosha\HiveMind\Services\MetricsCollector;
-use Aleoosha\HiveMind\Services\MetricsAccumulator;
-use Aleoosha\HiveMind\Services\PidCalculator;
-use Aleoosha\HiveMind\Services\SwarmIntelligence;
-use Aleoosha\HiveMind\DTO\AccumulatorState;
-use Aleoosha\HiveMind\Http\Middleware\AltruismMiddleware;
-use Aleoosha\HiveMind\Console\Commands\HivePulseCommand;
-use Aleoosha\HiveMind\Console\Commands\HiveDebugChartCommand;
+use Aleoosha\HiveMind\Factories\SerializerFactory;
+use Illuminate\Support\ServiceProvider;
 
 final class HiveMindServiceProvider extends ServiceProvider
 {
+    /**
+     * Register any application services.
+     */
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../../config/hive-mind.php', 'hive-mind');
-        
-        $this->registerBaseServices();
-        $this->registerPidServices();
+
+        $this->registerInfrastructure();
+        $this->registerTauKernel();
+        $this->registerDecisionEngine();
     }
 
-    public function boot(): void
+    /**
+     * Register base telemetry and storage services.
+     */
+    private function registerInfrastructure(): void
     {
-        $this->registerResources();
-
-        if ($this->app->runningInConsole()) {
-            $this->registerCommands();
-            $this->registerPublishing();
-        }
-
-        $this->setupLifecycle();
-    }
-
-    private function registerBaseServices(): void
-    {
-        $this->app->singleton(Serializer::class, function ($app) {
+        $this->app->singleton(SerializerInterface::class, function ($app) {
             return (new SerializerFactory())->make($app);
         });
 
-        $this->app->singleton(StateRepository::class, RedisStateRepository::class);
-        $this->app->singleton(MetricsCollector::class);
+        $this->app->singleton(StateRepositoryInterface::class, RedisStateRepository::class);
+        $this->app->singleton(PidStateRepositoryInterface::class, RedisPidStateRepository::class);
+        $this->app->singleton(MetricsCollectorInterface::class, MetricsCollector::class);
     }
 
-    private function registerPidServices(): void
+    /**
+     * Register mathematical PID calculation and tuning kernels.
+     */
+    private function registerTauKernel(): void
     {
-        $this->app->singleton(PidStateRepository::class, RedisPidStateRepository::class);
-        $this->app->singleton(AccumulatorState::class);
-        $this->app->singleton(MetricsAccumulator::class);
-        $this->app->singleton(PidCalculator::class);
-        $this->app->singleton(SwarmIntelligence::class);
+        $this->app->singleton(PidCalculatorInterface::class, PidCalculator::class);
+        $this->app->singleton(PidTunerInterface::class, PidTuner::class);
     }
 
-    private function registerResources(): void
+    /**
+     * Register the central Decision Support System (The Brain).
+     */
+    private function registerDecisionEngine(): void
     {
-        $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
-        $this->app['router']->aliasMiddleware('hive.altruism', AltruismMiddleware::class);
-    }
-
-    private function registerPublishing(): void
-    {
-        $this->publishes([
-            __DIR__ . '/../../database/migrations' => database_path('migrations'),
-        ], 'hive-mind-migrations');
-
-        $this->publishes([
-            __DIR__ . '/../../config/hive-mind.php' => config_path('hive-mind.php'),
-        ], 'hive-mind-config');
-    }
-
-    private function registerCommands(): void
-    {
-        $this->commands([
-            HivePulseCommand::class,
-            HiveDebugChartCommand::class,
-        ]);
-    }
-
-    private function setupLifecycle(): void
-    {
-        $this->app->terminating(function () {
-            if ($this->app->bound(StateRepository::class)) {
-                $this->app->make(StateRepository::class)->flushLocalCache();
-            }
+        $this->app->singleton(DecisionEngine::class, function ($app) {
+            return new DecisionEngine(
+                $app->make(PidCalculatorInterface::class),
+                $app->make(PidTunerInterface::class),
+                $app->make(PidStateRepositoryInterface::class),
+                $this->buildMetricProfiles()
+            );
         });
+    }
+
+    /**
+     * Transform Laravel configuration into DTO profiles for DSS Core.
+     *
+     * @return MetricProfile[]
+     */
+    private function buildMetricProfiles(): array
+    {
+        $config = config('hive-mind.thresholds', []);
+        $profiles = [];
+
+        foreach ($config as $key => $threshold) {
+            $profiles[] = new MetricProfile(
+                metricName: $key,
+                targetThreshold: FixedPoint::fromFloat((float) $threshold),
+                pidSettings: $this->getDefaultPidSettings()
+            );
+        }
+
+        return $profiles;
+    }
+
+    /**
+     * Get default PID coefficients as DTO.
+     */
+    private function getDefaultPidSettings(): PidSettings
+    {
+        return new PidSettings(
+            kp: FixedPoint::fromFloat(0.6),
+            ki: FixedPoint::fromFloat(0.1),
+            kd: FixedPoint::fromFloat(0.4),
+            antiWindup: FixedPoint::fromInt(20)
+        );
     }
 }

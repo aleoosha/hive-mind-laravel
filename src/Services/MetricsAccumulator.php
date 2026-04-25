@@ -4,40 +4,51 @@ declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Services;
 
+use Aleoosha\DssCore\DTO\DecisionResult;
 use Aleoosha\HiveMind\DTO\AccumulatorState;
-use Aleoosha\HiveMind\DTO\NodeMetrics;
 use Aleoosha\HiveMind\DTO\SwarmSnapshot;
+use Aleoosha\Telemetry\Contracts\DTO\NodeMetrics;
 
+/**
+ * Accumulates real-time metrics and decisions into minute-long snapshots.
+ */
 final class MetricsAccumulator
 {
     public function __construct(
         private readonly AccumulatorState $state
     ) {}
 
-    public function push(int $health, NodeMetrics $metrics, float $sheddingRate): void
+    /**
+     * Push current telemetry and DSS decision into the accumulator.
+     */
+    public function push(NodeMetrics $metrics, DecisionResult $decision): void
     {
         $this->state->count++;
-        $this->state->sumHealth += $health;
-        $this->state->sumShedding += $sheddingRate;
 
-        $this->updateMetric('Cpu', $metrics->cpu);
-        $this->updateMetric('Db', $metrics->dbLatency);
-        $this->updateMetric('Api', $metrics->apiLatency);
+        // We take the load level (health) and shedding rate from the Decision object
+        $this->state->sumHealth += $decision->systemLoad->value;
+        $this->state->sumShedding += $decision->sheddingRate->value;
+
+        // Update technical metrics using FixedPoint values
+        $this->updateMetric('Cpu', $metrics->cpu->value);
+        $this->updateMetric('Db', $metrics->dbLatency->value);
+        $this->updateMetric('Api', $metrics->apiLatency->value);
     }
 
     public function flush(int $activeNodes): SwarmSnapshot
     {
         $count = max($this->state->count, 1);
 
+        // Calculate averages and create a final database-ready snapshot
         $snapshot = new SwarmSnapshot(
-            avgHealth: $this->state->sumHealth / $count,
-            avgCpu: $this->state->sumCpu / $count,
-            maxCpu: $this->state->maxCpu,
-            avgDbLatency: $this->state->sumDb / $count,
-            maxDbLatency: $this->state->maxDb,
-            avgApiLatency: $this->state->sumApi / $count,
-            maxApiLatency: $this->state->maxApi,
-            avgShedding: $this->state->sumShedding / $count,
+            avgHealth: (float) ($this->state->sumHealth / $count / 1000),
+            avgCpu: (float) ($this->state->sumCpu / $count / 1000),
+            maxCpu: (float) ($this->state->maxCpu / 1000),
+            avgDbLatency: (float) ($this->state->sumDb / $count / 1000),
+            maxDbLatency: (float) ($this->state->maxDb / 1000),
+            avgApiLatency: (float) ($this->state->sumApi / $count / 1000),
+            maxApiLatency: (float) ($this->state->maxApi / 1000),
+            avgShedding: (float) ($this->state->sumShedding / $count / 1000),
             thresholdsSnapshot: json_encode(config('hive-mind.thresholds')),
             sampleCount: $this->state->count,
             nodeCount: $activeNodes
@@ -48,7 +59,7 @@ final class MetricsAccumulator
         return $snapshot;
     }
 
-    private function updateMetric(string $name, float $value): void
+    private function updateMetric(string $name, int $value): void
     {
         $sumKey = "sum{$name}";
         $maxKey = "max{$name}";

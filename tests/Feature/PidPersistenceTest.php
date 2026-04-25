@@ -4,50 +4,72 @@ declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Tests\Feature;
 
-use Aleoosha\HiveMind\Contracts\PidStateRepository;
-use Aleoosha\HiveMind\DTO\FixedPidResult;
-use Aleoosha\HiveMind\DTO\NodeMetrics;
-use Aleoosha\HiveMind\Services\SwarmIntelligence;
-use Aleoosha\HiveMind\Support\FixedPoint;
+use Aleoosha\DssCore\DecisionEngine;
+use Aleoosha\Support\Types\FixedPoint;
+use Aleoosha\TauPid\Contracts\DTO\FixedPidResult;
+use Aleoosha\TauPid\Contracts\PidStateRepositoryInterface;
+use Aleoosha\Telemetry\Contracts\DTO\NodeMetrics;
 use Mockery;
 
-test('swarm intelligence persists and retrieves tuned coefficients', function () {
-    $repo = Mockery::mock(PidStateRepository::class);
-    $zero = FixedPoint::raw(0);
+/**
+ * Feature test for PID state persistence and adaptive tuning logic.
+ * Ensures that the DecisionEngine correctly stores and retrieves
+ * tuned coefficients between execution cycles.
+ */
+test('decision engine persists and retrieves tuned coefficients', function () {
+    // 1. Force the config thresholds for the test context
+    config(['hive-mind.thresholds' => [
+        'cpu_percent' => 80 // or 0.8 depending on your config style
+    ]]);
 
+    $zero = new FixedPoint(0);
+    $now = (int)(microtime(true) * 1000);
+
+    // Initial state: Kp = 0.6, lastError was negative (-0.2)
     $initialResult = new FixedPidResult(
         output: $zero,
-        lastError: FixedPoint::fromFloat(-0.2),
+        lastError: FixedPoint::fromFloat(-0.2), 
         integral: $zero,
-        timestamp: microtime(true),
+        timestampMs: $now - 1000,
         kp: FixedPoint::fromFloat(0.6),
         ki: FixedPoint::fromFloat(0.1),
         kd: FixedPoint::fromFloat(0.4)
     );
 
-    $repo->shouldReceive('getState')->andReturn($initialResult);
+    $repo = Mockery::mock(PidStateRepositoryInterface::class);
+    
+    // Default behaviors
+    $repo->shouldReceive('getState')->byDefault()->andReturn(null);
+    $repo->shouldReceive('saveState')->byDefault();
 
-    $repo->shouldReceive('saveState')->atLeast()->once()->withArgs(function ($metric, $result) {
-        if ($metric === 'cpu_percent') {
-            return $result->kp->toFloat() < 0.6;
-        }
+    // 2. Mock getState to return our initial result when ANY key containing 'cpu' is asked
+    $repo->shouldReceive('getState')
+        ->with(Mockery::on(fn($key) => str_contains($key, 'cpu')))
+        ->andReturn($initialResult);
 
-        return true;
-    });
+    // 3. Catch the saving of the NEW state
+    $repo->shouldReceive('saveState')
+        ->atLeast()->once()
+        ->withArgs(function ($key, $result) {
+            if (str_contains($key, 'cpu')) {
+                // The main check: Kp must be reduced due to resonance detection
+                // (current error is positive, last was negative)
+                return $result->kp->toFloat() < 0.6;
+            }
+            return true;
+        });
 
-    $this->app->instance(PidStateRepository::class, $repo);
+    $this->app->instance(PidStateRepositoryInterface::class, $repo);
 
-    /** @var SwarmIntelligence $intelligence */
-    $intelligence = app(SwarmIntelligence::class);
+    $engine = app(DecisionEngine::class);
 
+    // Current metrics: CPU 95% (Positive error)
     $metrics = new NodeMetrics(
-        cpu: 95.0,
-        memory: 50.0,
-        dbLatency: 0.0,
-        apiLatency: 0.0,
-        timestamp: (int) time(),
-        nodeId: 'test-node'
+        cpu: FixedPoint::fromFloat(95.0),
+        memory: $zero, dbLatency: $zero, apiLatency: $zero,
+        timestampMs: $now, nodeId: 'test-node'
     );
 
-    $intelligence->computeSheddingRate($metrics);
+    $engine->evaluate($metrics, $initialResult);
 });
+

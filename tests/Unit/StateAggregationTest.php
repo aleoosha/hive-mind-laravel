@@ -1,30 +1,29 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Tests\Unit;
 
 use Aleoosha\HiveMind\Repositories\RedisStateRepository;
-use Aleoosha\HiveMind\Contracts\Serializer;
+use Aleoosha\Telemetry\Contracts\SerializerInterface;
+use Aleoosha\Support\Types\FixedPoint;
 use Illuminate\Support\Facades\Redis;
 use Mockery;
 
-test('it calculates average hive health correctly', function () {
-    $serializer = Mockery::mock(Serializer::class);
-    
-    Redis::shouldReceive('keys')->once()->andReturn(['hive_node:test']);
-    Redis::shouldReceive('get')->once()->andReturn('serialized_data');
-    
-    $serializer->shouldReceive('unpack')->once()->andReturn([
-        'cpu' => 80,
-        'memory' => 40,
-        'timestamp' => microtime(true)
-    ]);
-    
-    config(['hive-mind.thresholds.cpu_percent' => 80]);
-    config(['hive-mind.thresholds.memory_percent' => 80]);
+test('it retrieves global hive health from redis', function () {
+    /** @var SerializerInterface|\Mockery\MockInterface $serializer */
+    $serializer = Mockery::mock(SerializerInterface::class);
+
+    // В новой архитектуре репозиторий просто читает ключ 'hive_global_health',
+    // который записывает команда Pulse. Имитируем 100.0% здоровья (100000 в FixedPoint).
+    Redis::shouldReceive('get')
+        ->once()
+        ->with('hive_global_health')
+        ->andReturn('100000');
 
     $repository = new RedisStateRepository($serializer);
+    
+    $health = $repository->getGlobalHealth();
 
-    expect($repository->getGlobalHealth())->toBe(100000);
+    expect($health)->toBeInstanceOf(FixedPoint::class)
+        ->and($health->value)->toBe(100000)
+        ->and($health->toFloat())->toBe(100.0);
 });

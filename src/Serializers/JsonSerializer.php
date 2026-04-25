@@ -1,19 +1,27 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace Aleoosha\HiveMind\Serializers;
 
-use Aleoosha\HiveMind\Contracts\Serializer;
+use Aleoosha\Telemetry\Contracts\SerializerInterface;
 
-class JsonSerializer implements Serializer
+/**
+ * Standard JSON implementation of the telemetry serializer.
+ */
+class JsonSerializer implements SerializerInterface
 {
-    public function pack(array $data): string 
-    { 
-        return json_encode($data); 
+    /**
+     * Packs data into a JSON string.
+     */
+    public function pack(mixed $data): string
+    {
+        return (string) json_encode($data);
     }
-    public function unpack(string $data): array 
-    { 
-        return json_decode($data, true) ?? []; 
+
+    /**
+     * Unpacks a JSON string back into an associative array.
+     */
+    public function unpack(string $data): mixed
+    {
+        return json_decode($data, true) ?? [];
     }
 }
