@@ -13,6 +13,7 @@ use Aleoosha\HiveMind\Repositories\RedisPidStateRepository;
 use Aleoosha\HiveMind\Repositories\RedisStateRepository;
 use Aleoosha\HiveMind\Services\MetricsCollector;
 use Aleoosha\Support\Types\FixedPoint;
+use Aleoosha\TauPid\Contracts\Enums\AggressionMode;
 use Aleoosha\TauPid\Contracts\DTO\MetricProfile;
 use Aleoosha\TauPid\Contracts\DTO\PidSettings;
 use Aleoosha\TauPid\Contracts\PidCalculatorInterface;
@@ -128,10 +129,16 @@ final class HiveMindServiceProvider extends ServiceProvider
      */
     private function getDefaultPidSettings(): PidSettings
     {
+        // Безопасно пытаемся создать Enum из конфига, иначе берем BALANCED
+        $mode = AggressionMode::tryFrom(config('hive-mind.shedding.aggression', '')) 
+                ?? AggressionMode::BALANCED;
+
+        $set = $mode->getSettings();
+
         return new PidSettings(
-            kp: FixedPoint::fromFloat(2.0), 
-            ki: FixedPoint::fromFloat(0.5),
-            kd: FixedPoint::fromFloat(1.0),
+            kp: FixedPoint::fromFloat($set['kp']),
+            ki: FixedPoint::fromFloat($set['ki']),
+            kd: FixedPoint::fromFloat($set['kd']),
             antiWindup: FixedPoint::fromInt(1)
         );
     }

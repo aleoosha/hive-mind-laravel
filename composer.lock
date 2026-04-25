@@ -12,12 +12,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aleoosha/dss-core.git",
-                "reference": "e0c24fa690d2b3003bd194e5ecc79a7cf2353739"
+                "reference": "26faff7591bb8111669f46b4dfe87f833d579478"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aleoosha/dss-core/zipball/e0c24fa690d2b3003bd194e5ecc79a7cf2353739",
-                "reference": "e0c24fa690d2b3003bd194e5ecc79a7cf2353739",
+                "url": "https://api.github.com/repos/aleoosha/dss-core/zipball/26faff7591bb8111669f46b4dfe87f833d579478",
+                "reference": "26faff7591bb8111669f46b4dfe87f833d579478",
                 "shasum": ""
             },
             "require": {
@@ -45,7 +45,7 @@
                 "source": "https://github.com/aleoosha/dss-core/tree/main",
                 "issues": "https://github.com/aleoosha/dss-core/issues"
             },
-            "time": "2026-04-25T07:59:16+00:00"
+            "time": "2026-04-25T10:01:39+00:00"
         },
         {
             "name": "aleoosha/support-types",
@@ -101,12 +101,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aleoosha/tau-pid-contracts.git",
-                "reference": "bf06c373b68e341cb17f6850aaa0dfa7f537d954"
+                "reference": "fd8275fb0bb790fa32aef5e873f8c5461cf2084c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aleoosha/tau-pid-contracts/zipball/bf06c373b68e341cb17f6850aaa0dfa7f537d954",
-                "reference": "bf06c373b68e341cb17f6850aaa0dfa7f537d954",
+                "url": "https://api.github.com/repos/aleoosha/tau-pid-contracts/zipball/fd8275fb0bb790fa32aef5e873f8c5461cf2084c",
+                "reference": "fd8275fb0bb790fa32aef5e873f8c5461cf2084c",
                 "shasum": ""
             },
             "require": {
@@ -131,7 +131,7 @@
                 "source": "https://github.com/aleoosha/tau-pid-contracts/tree/main",
                 "issues": "https://github.com/aleoosha/tau-pid-contracts/issues"
             },
-            "time": "2026-04-25T07:28:07+00:00"
+            "time": "2026-04-25T10:25:27+00:00"
         },
         {
             "name": "aleoosha/tau-pid-kernel",
@@ -139,12 +139,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aleoosha/tau-pid-kernel.git",
-                "reference": "046d07a836e6d4d73d74ee31b7b08b5c709b5b0f"
+                "reference": "8af6411743c505eeb048fb44ee29f4522320ad20"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aleoosha/tau-pid-kernel/zipball/046d07a836e6d4d73d74ee31b7b08b5c709b5b0f",
-                "reference": "046d07a836e6d4d73d74ee31b7b08b5c709b5b0f",
+                "url": "https://api.github.com/repos/aleoosha/tau-pid-kernel/zipball/8af6411743c505eeb048fb44ee29f4522320ad20",
+                "reference": "8af6411743c505eeb048fb44ee29f4522320ad20",
                 "shasum": ""
             },
             "require": {
@@ -171,7 +171,7 @@
                 "source": "https://github.com/aleoosha/tau-pid-kernel/tree/main",
                 "issues": "https://github.com/aleoosha/tau-pid-kernel/issues"
             },
-            "time": "2026-04-25T08:46:40+00:00"
+            "time": "2026-04-25T10:06:39+00:00"
         },
         {
             "name": "aleoosha/telemetry-contracts",

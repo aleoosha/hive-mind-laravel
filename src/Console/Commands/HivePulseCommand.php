@@ -52,7 +52,7 @@ final class HivePulseCommand extends Command
                 $previousState = $pidRepository->getState('global_resilience');
 
                 // 3. Process metrics through the Decision Support System (DSS)
-                $decision = $engine->evaluate($metrics, $previousState);
+                $decision = $engine->evaluate($metrics);
 
                 // 4. Push data to accumulator for periodic archiving
                 $accumulator->push($metrics, $decision);
