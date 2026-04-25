@@ -129,10 +129,10 @@ final class HiveMindServiceProvider extends ServiceProvider
     private function getDefaultPidSettings(): PidSettings
     {
         return new PidSettings(
-            kp: FixedPoint::fromFloat(0.6),
-            ki: FixedPoint::fromFloat(0.1),
-            kd: FixedPoint::fromFloat(0.4),
-            antiWindup: FixedPoint::fromInt(20)
+            kp: FixedPoint::fromFloat(5.0),
+            ki: FixedPoint::fromFloat(0.2),
+            kd: FixedPoint::fromFloat(2.0),
+            antiWindup: FixedPoint::fromInt(1)
         );
     }
 }

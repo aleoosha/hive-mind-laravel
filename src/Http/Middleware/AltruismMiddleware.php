@@ -69,7 +69,7 @@ final class AltruismMiddleware
      */
     private function shouldShed(float $chance): bool
     {
-        return $chance > 0 && random_int(1, 100) <= ($chance * 100);
+        return $chance > 0 && random_int(1, 100) <= (int)($chance * 100);
     }
 
     /**
