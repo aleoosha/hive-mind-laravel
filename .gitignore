@@ -4,4 +4,3 @@ composer.lock
 .idea
 .vscode
 .env
-composer.lock
