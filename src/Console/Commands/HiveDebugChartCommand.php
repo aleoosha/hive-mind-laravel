@@ -58,7 +58,7 @@ final class HiveDebugChartCommand extends Command
         foreach ($data as $x => $point) {
             // Using the new FixedPoint library to interpret stored integers
             $health = (new FixedPoint((int) $point->avg_health))->toFloat();
-            $pid = (new FixedPoint((int) $point->avg_shedding))->toFloat(); // updated column name if changed
+            $pid = (new FixedPoint((int) $point->shedding_rate))->toFloat(); // updated column name if changed
 
             $yHealth = (int) ($health * ($h - 1));
             $yPid = (int) ($pid * ($h - 1));
@@ -85,7 +85,7 @@ final class HiveDebugChartCommand extends Command
 
         foreach ($data as $point) {
             $health = (new FixedPoint((int) $point->avg_health))->toFloat();
-            $pid = (new FixedPoint((int) $point->avg_shedding))->toFloat();
+            $pid = (new FixedPoint((int) $point->shedding_rate))->toFloat();
 
             $x = (int) ($health * (self::CANVAS_X - 1));
             $y = (int) ($pid * ($h - 1));
