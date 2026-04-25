@@ -8,17 +8,12 @@ use Aleoosha\DssCore\DecisionEngine;
 use Aleoosha\HiveMind\Services\MetricsAccumulator;
 use Aleoosha\HiveMind\Support\DatabaseMapper;
 use Aleoosha\TauPid\Contracts\PidStateRepositoryInterface;
-use Aleoosha\Telemetry\Contracts\DTO\HardwareContext;
 use Aleoosha\Telemetry\Contracts\MetricsCollectorInterface;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Throwable;
 
-/**
- * Main control loop for the HiveMind system.
- * Orchestrates telemetry collection, decision making, and data archiving.
- */
 final class HivePulseCommand extends Command
 {
     protected $signature = 'hive:pulse';
@@ -34,37 +29,28 @@ final class HivePulseCommand extends Command
         MetricsAccumulator $accumulator
     ): int {
         $this->info('HiveMind: Swarm Consciousness active (FixedPoint Edition)...');
-
         $this->registerSignals();
 
         $lastArchiveTime = time();
         $interval = (int) config('hive-mind.broadcast.interval_seconds', 1);
-
-        /** @var HardwareContext $hardware */
         $hardware = $collector->getHardwareContext();
 
         while (! $this->shouldQuit) {
             try {
-                // 1. Collect telemetry metrics from the underlying system
                 $metrics = $collector->collect();
-
-                // 2. Fetch the persistent PID state for decision context
-                $previousState = $pidRepository->getState('global_resilience');
-
-                // 3. Process metrics through the Decision Support System (DSS)
                 $decision = $engine->evaluate($metrics);
 
-                // 4. Push data to accumulator for periodic archiving
                 $accumulator->push($metrics, $decision);
 
+                // Get active nodes count
                 $nodes = count(Redis::keys('hive_node:*'));
 
-                // 5. Archive aggregated snapshots every minute
                 if (time() - $lastArchiveTime >= 60) {
                     $this->archive($accumulator->flush($nodes), $hardware);
                     $lastArchiveTime = time();
                 }
 
+                // We pass the RAW float (0.0 - 1.0) to the display method
                 $this->displayPulse($nodes, $metrics, $decision->sheddingRate->toFloat());
 
             } catch (Throwable $e) {
@@ -79,9 +65,6 @@ final class HivePulseCommand extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * Register OS signals for graceful shutdown.
-     */
     private function registerSignals(): void
     {
         if (function_exists('pcntl_signal')) {
@@ -96,21 +79,23 @@ final class HivePulseCommand extends Command
      */
     private function displayPulse(int $nodes, $metrics, float $rate): void
     {
-        $pidOutput = $rate > 0 ? "<fg=red>{$rate}</>%" : '<fg=green>0</>%';
+        // Convert 0.01 to 1.00%
+        $percent = number_format($rate * 100, 2);
+
+        $pidOutput = $rate > 0
+            ? "<fg=red>{$percent}%</>"
+            : '<fg=green>0%</>';
 
         $this->line(sprintf(
-            '[%s] 🐝 Nodes: %d | 🖥️ CPU: %s%% | 🧠 RAM: %s%% | 📢 PID: %s',
+            '[%s] 🐝 Nodes: %d | 🖥️ CPU: <fg=green>%s%%</> | 🧠 RAM: <fg=magenta>%s%%</> | 📢 PID: %s',
             now()->toTimeString(),
             $nodes,
-            $metrics->cpu->toFloat(),
-            $metrics->memory->toFloat(),
+            number_format($metrics->cpu->toFloat(), 2),
+            number_format($metrics->memory->toFloat(), 2),
             $pidOutput
         ));
     }
 
-    /**
-     * Save the aggregated Swarm state to the database.
-     */
     private function archive($snapshot, $hardware): void
     {
         try {
