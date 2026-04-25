@@ -113,16 +113,23 @@ final class HiveMindServiceProvider extends ServiceProvider
         $config = config('hive-mind.thresholds', []);
         $profiles = [];
 
-        foreach ($config as $key => $threshold) {
+        foreach ($config as $key => $options) {
+            $limit = is_array($options) ? ($options['limit'] ?? 0) : $options;
+            $settlingTime = is_array($options) ? ($options['settling_time'] ?? 5) : 5;
+            $margin = is_array($options) ? ($options['activation_margin'] ?? 0.9) : 0.9;
+
             $profiles[] = new MetricProfile(
                 metricName: $key,
-                targetThreshold: FixedPoint::fromFloat((float) $threshold),
-                pidSettings: $this->getDefaultPidSettings()
+                targetThreshold: FixedPoint::fromFloat((float) $limit),
+                pidSettings: $this->getDefaultPidSettings(),
+                settlingTimeSeconds: (int) $settlingTime,
+                activationMargin: (float) $margin
             );
         }
 
         return $profiles;
     }
+
 
     /**
      * Get default PID coefficients as DTO.
