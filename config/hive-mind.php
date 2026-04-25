@@ -1,6 +1,7 @@
 <?php
 
 return [
+
     /*
 
     |--------------------------------------------------------------------------
@@ -8,18 +9,16 @@ return [
     |--------------------------------------------------------------------------
 
     |
-    | Configuration for node-to-cluster communication.
+    | Configuration for node-to-cluster communication and synchronization.
     |
     */
     'broadcast' => [
         'interval_seconds' => 1,
-
         /**
          * Serialization format for inter-node communication.
          * Supported: "json", "msgpack"
          */
         'format' => env('HIVE_FORMAT', 'json'),
-
         'ttl_seconds' => 5,
     ],
 
@@ -35,20 +34,15 @@ return [
     */
     'shedding' => [
         'enabled' => env('HIVE_SHEDDING_ENABLED', true),
-        
-        /**
-         * The shedding algorithm behavior.
-         * 
-         * "static"        - Rejects all incoming requests immediately after threshold.
-         * "probabilistic" - Linearly increases rejection chance from threshold to 100% load.
-         */
-        'mode' => env('HIVE_SHEDDING_MODE', 'probabilistic'),
 
         /**
-         * Health percentage (0-100) at which protection activates.
+         * Protection Aggression Level.
+         *
+         * Defines how hard the PID controller "hits" when approaching thresholds.
+         * Supported: "soft", "balanced", "aggressive", "panic"
          */
-        'activation_threshold' => 75,
-        
+        'aggression' => env('HIVE_AGGRESSION', 'balanced'),
+
         /**
          * Seconds for the HTTP Retry-After header in 503 responses.
          */
@@ -68,17 +62,18 @@ return [
     /*
 
     |--------------------------------------------------------------------------
-    | Resource Thresholds
+    | Resource Thresholds (Hard Limits)
     |--------------------------------------------------------------------------
 
     |
-    | Physical hardware limits used for health coefficient calculations.
+    | Physical hardware limits. When reached, shedding becomes 100%.
+    | Reaction starts pre-emptively at 90% of these values.
     |
     */
     'thresholds' => [
-        'cpu_percent' => 80,
-        'memory_percent' => 90,
-        'db_latency_ms' => 100, 
-        'api_latency_ms' => 500, 
+        'cpu_percent' => (int) env('HIVE_THRESHOLD_CPU', 70),
+        'memory_percent' => (int) env('HIVE_THRESHOLD_RAM', 90),
+        'db_latency_ms' => (int) env('HIVE_THRESHOLD_DB', 150),
+        'api_latency_ms' => (int) env('HIVE_THRESHOLD_API', 500),
     ],
 ];
