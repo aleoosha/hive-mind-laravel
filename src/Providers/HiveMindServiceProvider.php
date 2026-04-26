@@ -8,6 +8,7 @@ use Aleoosha\DssCore\DecisionEngine;
 use Aleoosha\HiveMind\Console\Commands\HiveDebugChartCommand;
 use Aleoosha\HiveMind\Console\Commands\HivePulseCommand;
 use Aleoosha\HiveMind\Factories\RepositoryFactory;
+use Aleoosha\HiveMind\Factories\SerializerFactory;
 use Aleoosha\HiveMind\Http\Middleware\AltruismMiddleware;
 use Aleoosha\HiveMind\Repositories\SwooleStateRepository;
 use Aleoosha\HiveMind\Services\MetricsCollector;
@@ -21,6 +22,7 @@ use Aleoosha\TauPid\Contracts\PidTunerInterface;
 use Aleoosha\TauPid\Kernel\Services\PidCalculator;
 use Aleoosha\TauPid\Kernel\Services\PidTuner;
 use Aleoosha\Telemetry\Contracts\MetricsCollectorInterface;
+use Aleoosha\Telemetry\Contracts\SerializerInterface;
 use Aleoosha\Telemetry\Contracts\StateRepositoryInterface;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -85,6 +87,10 @@ final class HiveMindServiceProvider extends ServiceProvider
         $this->app->singleton(RepositoryFactory::class, RepositoryFactory::class);
         $this->app->singleton(SwooleStateRepository::class, SwooleStateRepository::class);
         $this->app->singleton(MetricsCollectorInterface::class, MetricsCollector::class);
+
+        $this->app->singleton(SerializerInterface::class, function ($app) {
+            return (new SerializerFactory)->make($app);
+        });
 
         $this->app->bind(StateRepositoryInterface::class, function ($app) {
             return $app->make(RepositoryFactory::class)->makeStateRepository();
