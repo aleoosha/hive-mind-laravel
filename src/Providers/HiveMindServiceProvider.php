@@ -9,13 +9,15 @@ use Aleoosha\HiveMind\Console\Commands\HiveDebugChartCommand;
 use Aleoosha\HiveMind\Console\Commands\HivePulseCommand;
 use Aleoosha\HiveMind\Factories\SerializerFactory;
 use Aleoosha\HiveMind\Http\Middleware\AltruismMiddleware;
+use Aleoosha\HiveMind\Repositories\NullPidStateRepository;
+use Aleoosha\HiveMind\Repositories\NullStateRepository;
 use Aleoosha\HiveMind\Repositories\RedisPidStateRepository;
 use Aleoosha\HiveMind\Repositories\RedisStateRepository;
 use Aleoosha\HiveMind\Services\MetricsCollector;
 use Aleoosha\Support\Types\FixedPoint;
-use Aleoosha\TauPid\Contracts\Enums\AggressionMode;
 use Aleoosha\TauPid\Contracts\DTO\MetricProfile;
 use Aleoosha\TauPid\Contracts\DTO\PidSettings;
+use Aleoosha\TauPid\Contracts\Enums\AggressionMode;
 use Aleoosha\TauPid\Contracts\PidCalculatorInterface;
 use Aleoosha\TauPid\Contracts\PidStateRepositoryInterface;
 use Aleoosha\TauPid\Contracts\PidTunerInterface;
@@ -24,7 +26,10 @@ use Aleoosha\TauPid\Kernel\Services\PidTuner;
 use Aleoosha\Telemetry\Contracts\MetricsCollectorInterface;
 use Aleoosha\Telemetry\Contracts\SerializerInterface;
 use Aleoosha\Telemetry\Contracts\StateRepositoryInterface;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\ServiceProvider;
+use Throwable;
 
 final class HiveMindServiceProvider extends ServiceProvider
 {
@@ -74,8 +79,22 @@ final class HiveMindServiceProvider extends ServiceProvider
             return (new SerializerFactory)->make($app);
         });
 
-        $this->app->singleton(StateRepositoryInterface::class, RedisStateRepository::class);
-        $this->app->singleton(PidStateRepositoryInterface::class, RedisPidStateRepository::class);
+        $storageReady = true;
+        try {
+            Redis::connection();
+        } catch (Throwable $e) {
+            $storageReady = false;
+            Log::warning('HiveMind: Redis connection failed. Falling back to Null storage (Protection disabled).');
+        }
+
+        if ($storageReady) {
+            $this->app->singleton(StateRepositoryInterface::class, RedisStateRepository::class);
+            $this->app->singleton(PidStateRepositoryInterface::class, RedisPidStateRepository::class);
+        } else {
+            $this->app->singleton(StateRepositoryInterface::class, NullStateRepository::class);
+            $this->app->singleton(PidStateRepositoryInterface::class, NullPidStateRepository::class);
+        }
+
         $this->app->singleton(MetricsCollectorInterface::class, MetricsCollector::class);
     }
 
@@ -130,14 +149,13 @@ final class HiveMindServiceProvider extends ServiceProvider
         return $profiles;
     }
 
-
     /**
      * Get default PID coefficients as DTO.
      */
     private function getDefaultPidSettings(): PidSettings
     {
         // Безопасно пытаемся создать Enum из конфига, иначе берем BALANCED
-        $mode = AggressionMode::tryFrom(config('hive-mind.shedding.aggression', '')) 
+        $mode = AggressionMode::tryFrom(config('hive-mind.shedding.aggression', ''))
                 ?? AggressionMode::BALANCED;
 
         $set = $mode->getSettings();
